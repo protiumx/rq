@@ -4,9 +4,6 @@ on:
     paths:
       - rq-core/**/*.rs
       - rq-core/**/Cargo.toml
-    types:
-      - opened
-      - reopened
     
   push:
     paths:

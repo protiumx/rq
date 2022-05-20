@@ -2,7 +2,7 @@
 name = "rq-core"
 version = "0.1.0"
 edition = "2021"
-authors = "Brian Mayo protiumx@gmail.com"
+authors = ["Brian Mayo <protiumx@gmail.com>"]
 description = "rq-core includes parser and request calls"
 readme = "README.md"
 

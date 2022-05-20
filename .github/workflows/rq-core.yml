@@ -1,4 +1,4 @@
-name: CI
+name: rq-core CI
 on:
   pull_request:
     paths:
@@ -12,8 +12,14 @@ on:
     branches:
       - main
 
+
+concurrency:
+  group: rq-core-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources

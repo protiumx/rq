@@ -10,7 +10,7 @@ on:
       - rq-core/**/*.rs
       - rq-core/**/Cargo.toml
     branches:
-      - "*"
+      - main
 
 
 concurrency:

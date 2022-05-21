@@ -2,11 +2,13 @@ name: rq-core CI
 on:
   pull_request:
     paths:
+      - .github/workflows/rq-core.yml
       - rq-core/**/*.rs
       - rq-core/**/Cargo.toml
     
   push:
     paths:
+      - .github/workflows/rq-core.yml
       - rq-core/**/*.rs
       - rq-core/**/Cargo.toml
     branches:

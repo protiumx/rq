@@ -99,15 +99,13 @@ impl HttpRequest {
 impl Display for HttpRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {} HTTP/{}", self.method, self.url, self.version)?;
-        if self.headers.len() > 0 {
+        if !self.headers.is_empty() {
             f.write_str("\n")?;
-            let mut i = 0;
-            for (k, v) in &self.headers {
+            for (i, (k, v)) in self.headers.iter().enumerate() {
                 write!(f, "{}: {}", k, v)?;
                 if i != self.headers.len() - 1 {
                     f.write_str("\n")?
                 }
-                i += 1;
             }
         }
         Ok(())
@@ -137,7 +135,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for HttpFile {
 
 impl Display for HttpFile {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.requests.len() == 0 {
+        if self.requests.is_empty() {
             writeln!(f, "No requests found")?;
             return Ok(());
         }

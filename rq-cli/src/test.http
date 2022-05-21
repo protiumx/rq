@@ -1,0 +1,6 @@
+GET https://google.com HTTP/1.1
+auth: cacatua
+aurtj: cacatuaa
+
+POST https://google.com HTTP/1.1
+

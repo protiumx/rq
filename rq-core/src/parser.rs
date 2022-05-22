@@ -32,10 +32,10 @@ impl HttpMethod {
     }
 }
 
-impl<'a> TryFrom<Pair<'a, Rule>> for HttpMethod {
+impl<'i> TryFrom<Pair<'i, Rule>> for HttpMethod {
     type Error = Error<Rule>;
 
-    fn try_from(pair: Pair<'a, Rule>) -> Result<Self, Self::Error> {
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
         Ok(match pair.as_str() {
             "GET" => Self::Get,
             "POST" => Self::Post,
@@ -63,36 +63,56 @@ pub struct HttpRequest {
     pub url: String,
     pub version: String,
     pub headers: HashMap<String, String>,
+    pub body: String,
 }
 
-impl<'a> TryFrom<Pair<'a, Rule>> for HttpRequest {
+impl<'i> TryFrom<Pair<'i, Rule>> for HttpRequest {
     type Error = Error<Rule>;
 
-    fn try_from(pair: Pair<'a, Rule>) -> Result<Self, Self::Error> {
+    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
         let mut iterator = pair.into_inner();
         // {
         //  method target version
         //  headers
+        //  body
         // }
-        Ok(Self {
+        let mut ret = Self {
             method: iterator.next().unwrap().try_into()?,
             url: iterator.next().unwrap().as_str().to_string(),
             version: iterator.next().unwrap().as_str().to_string(),
-            headers: Self::parse_headers(iterator),
-        })
+            headers: HashMap::new(),
+            body: String::new(),
+        };
+
+        for item in iterator {
+            match item.as_rule() {
+                Rule::headers => {
+                    ret.parse_headers(item.into_inner());
+                }
+                Rule::body => {
+                    ret.body = item.as_str().to_string();
+                }
+                _ => {
+                    unreachable!();
+                }
+            }
+        }
+
+        Ok(ret)
     }
 }
 
 impl HttpRequest {
-    fn parse_headers(pairs: Pairs<Rule>) -> HashMap<String, String> {
-        let mut ret = HashMap::new();
+    fn parse_headers(&mut self, pairs: Pairs<Rule>) {
         for item in pairs {
+            if let Rule::body = item.as_rule() {
+                break;
+            }
             let mut kv = item.into_inner();
             let key = kv.next().unwrap().as_str().to_string();
             let value = kv.next().unwrap().as_str().to_string();
-            ret.insert(key, value);
+            self.headers.insert(key, value);
         }
-        ret
     }
 }
 
@@ -100,13 +120,14 @@ impl Display for HttpRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {} HTTP/{}", self.method, self.url, self.version)?;
         if !self.headers.is_empty() {
-            f.write_str("\n")?;
+            f.write_str(" [")?;
             for (i, (k, v)) in self.headers.iter().enumerate() {
                 write!(f, "{}: {}", k, v)?;
                 if i != self.headers.len() - 1 {
-                    f.write_str("\n")?
+                    f.write_str(", ")?;
                 }
             }
+            f.write_str("]")?
         }
         Ok(())
     }
@@ -117,17 +138,22 @@ pub struct HttpFile {
     pub requests: Vec<HttpRequest>,
 }
 
-impl<'a> TryFrom<Pair<'a, Rule>> for HttpFile {
+impl<'i> TryFrom<Pair<'i, Rule>> for HttpFile {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
         let iterator = pair.into_inner();
         let mut requests = vec![];
         for item in iterator {
-            if let Rule::EOI = item.as_rule() {
-                break;
+            match item.as_rule() {
+                Rule::EOI => {
+                    break;
+                }
+                Rule::request => {
+                    requests.push(item.try_into()?);
+                }
+                _ => {}
             }
-            requests.push(item.try_into()?);
         }
         Ok(Self { requests })
     }
@@ -199,10 +225,22 @@ authorization: Bearer xxxx
     }
 
     #[test]
+    fn test_http_body() {
+        let input = r#"
+POST test.dev HTTP/1
+
+{ "test": "body" }"#;
+        let file = assert_parses(input);
+        assert_eq!(file.requests[0].body, "{ \"test\": \"body\" }");
+    }
+
+    #[test]
     fn test_http_file() {
         let input = r#"
 POST test.dev HTTP/1
 authorization: token
+
+###
 
 GET test.dev HTTP/1
 "#;
@@ -210,7 +248,7 @@ GET test.dev HTTP/1
         assert_eq!(file.requests.len(), 2);
         assert_eq!(
             file.to_string(),
-            "#0\nPOST test.dev HTTP/1\nauthorization: token\n#1\nGET test.dev HTTP/1\n"
+            "#0\nPOST test.dev HTTP/1 [authorization: token]\n#1\nGET test.dev HTTP/1\n"
         );
     }
 }

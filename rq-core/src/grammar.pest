@@ -1,20 +1,26 @@
-// HTTP request block
-file = { SOI ~ request* ~ EOI}
+// HTTP file contains requests or line breaks
+file = { SOI ~ (separator | request )* ~ EOI}
 
-// If header is present then NEWLINE is mandatory
-request = {	request_line ~ (header* ~ NEWLINE)* }
-request_line = _{ method ~ " "+ ~ target ~ " "+ ~ "HTTP/" ~ version ~ NEWLINE* }
+request = {	
+	request_line ~
+    (NEWLINE ~ headers | NEWLINE)? ~
+    (NEWLINE ~ body | NEWLINE)? ~
+    NEWLINE*
+}
 
+separator = { "#"{3} ~ NEWLINE* }
+
+request_line = _{ method ~ " "+ ~ uri ~ " "+ ~ "HTTP/" ~ version }
 // URLs can contain any char except for white spaces
-target = { (!whitespace ~ ANY)+ }
-method = { ( "GET" | "DELETE" | "POST" | "PUT") }
+uri = { (!whitespace ~ ANY)+ }
+method = { ("GET" | "DELETE" | "POST" | "PUT") }
 version = { (ASCII_DIGIT | ".")+ }
 
+headers = { header+ }
 header = { header_name ~ ":" ~ whitespace+ ~ header_value+ ~ NEWLINE }
+header_name = { (!(":" | NEWLINE) ~ ANY)+ }
 header_value = { (!NEWLINE ~ ANY)+ }
-header_name = { token }
+
+body = { (!separator ~ ANY)+ }
+
 whitespace = _ { " " | "\t" }
-
-token = _{ (!separator ~ ANY)+ }
-separator = { " " | "\"" | "," | "/" | ":" | ";" | "=" | "?" | "@" | "\\" | "(" | ")" | "<" | ">" | "[" | "]" | "{" | "}" }
-

@@ -5,6 +5,7 @@ use reqwest::header;
 use crate::parser::{HttpMethod, HttpRequest};
 use std::time::Duration;
 
+#[derive(Default)]
 pub struct HttpClient {
     pub client: reqwest::blocking::Client,
 }

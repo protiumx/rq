@@ -21,7 +21,6 @@ concurrency:
 
 jobs:
   CI:
-    name: Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources

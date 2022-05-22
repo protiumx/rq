@@ -1,4 +1,4 @@
-name: rq-core CI
+name: rq-core
 on:
   pull_request:
     paths:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  CI:
     name: Check
     runs-on: ubuntu-latest
     steps:

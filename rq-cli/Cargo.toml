@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 rq-core = { path = "../rq-core" }
+
+inquire = "0.2.1"

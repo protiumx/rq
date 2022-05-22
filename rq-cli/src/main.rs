@@ -1,11 +1,17 @@
-use rq_core;
+use rq_core::parser::parse;
 
+use std::env;
 use std::fs;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let unparsed_file = fs::read_to_string("./src/test.http")?;
-    let http_file = rq_core::parser::parse(&unparsed_file);
-    println!("file:\n{}", http_file.unwrap());
+use inquire::MultiSelect;
 
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
+    let file_content = fs::read_to_string(args[1].as_str())?;
+    let http_file = parse(&file_content).unwrap();
+    println!("file:\n{}", http_file);
+
+    let ans = MultiSelect::new("Select requests to execute:", http_file.requests).prompt();
+    println!("selected {:?}", ans);
     Ok(())
 }

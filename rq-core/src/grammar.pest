@@ -1,11 +1,10 @@
 // HTTP file contains requests or line breaks
-file = { SOI ~ (separator | request )* ~ EOI}
+file = { SOI ~ (separator | request ~ NEWLINE* )* ~ EOI}
 
 request = {	
 	request_line ~
     (NEWLINE ~ headers | NEWLINE)? ~
-    (NEWLINE ~ body | NEWLINE)? ~
-    NEWLINE*
+    (NEWLINE ~ body | NEWLINE)?
 }
 
 separator = { "#"{3} ~ NEWLINE* }

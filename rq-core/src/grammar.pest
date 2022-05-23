@@ -24,4 +24,3 @@ header_value = { (!NEWLINE ~ ANY)+ }
 body = { (!separator ~ ANY)+ }
 
 whitespace = _ { " " | "\t" }
-

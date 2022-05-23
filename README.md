@@ -46,4 +46,5 @@ PRs are always welcomed. Refer to the [project TODO list](https://github.com/pro
 ## Sponsorship
 
 If you find this project useful you can support my work with:
+
 <a href="https://www.buymeacoffee.com/p3kqm9Z2h" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-red.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>

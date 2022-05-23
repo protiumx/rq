@@ -105,9 +105,6 @@ impl<'i> TryFrom<Pair<'i, Rule>> for HttpRequest {
 impl HttpRequest {
     fn parse_headers(&mut self, pairs: Pairs<Rule>) {
         for item in pairs {
-            if let Rule::body = item.as_rule() {
-                break;
-            }
             let mut kv = item.into_inner();
             let key = kv.next().unwrap().as_str().to_string();
             let value = kv.next().unwrap().as_str().to_string();

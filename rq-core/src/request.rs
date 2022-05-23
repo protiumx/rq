@@ -1,9 +1,9 @@
 extern crate reqwest;
 
-use reqwest::header;
+use reqwest::{header, Method};
 
-use crate::parser::{HttpMethod, HttpRequest};
-use std::time::Duration;
+use crate::parser::HttpRequest;
+use std::{str::FromStr, time::Duration};
 
 #[derive(Default)]
 pub struct HttpClient {
@@ -32,12 +32,9 @@ impl HttpClient {
     }
 
     pub fn execute(&self, req: &HttpRequest) -> Result<(), Box<dyn std::error::Error>> {
-        let request = match req.method {
-            HttpMethod::Get => self.client.get(&req.url),
-            HttpMethod::Post => self.client.post(&req.url),
-            HttpMethod::Put => self.client.post(&req.url),
-            HttpMethod::Delete => self.client.post(&req.url),
-        };
+        let request = self
+            .client
+            .request(Method::from_str(req.method.to_string().as_str())?, &req.url);
 
         let headers: header::HeaderMap = (&req.headers).try_into()?;
 

@@ -1,4 +1,11 @@
 GET https://example.com HTTP/1.1
 authorzation: token
 
+###
+
+POST https://rq-rust.free.beeceptor.com/api HTTP/1.1
+
+{
+  "hello": "hola"
+}
 

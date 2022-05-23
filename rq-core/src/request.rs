@@ -41,7 +41,8 @@ impl HttpClient {
 
         let headers: header::HeaderMap = (&req.headers).try_into()?;
 
-        let res = request.headers(headers).send()?;
+        let body = req.body.clone();
+        let res = request.headers(headers).body(body).send()?;
 
         println!("{}\n", res.text()?);
 

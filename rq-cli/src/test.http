@@ -3,6 +3,18 @@ authorzation: token
 
 ###
 
+POST https://protiumx.github.io HTTP/1.1
+
+###
+
+PUT https://protiumx.github.io HTTP/1.1
+
+###
+
+DELETE https://protiumx.github.io HTTP/1.1
+
+###
+
 POST https://rq-rust.free.beeceptor.com/api HTTP/1.1
 
 {

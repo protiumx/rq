@@ -3,7 +3,7 @@ authorzation: token
 
 ###
 
-POST https://rq-rust.free.beeceptor.com/my/api/path HTTP/1.1
+POST https://rq-rust.free.beeceptor.com/api HTTP/1.1
 
 {
   "hello": "hola"

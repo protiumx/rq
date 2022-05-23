@@ -1,15 +1,16 @@
 // HTTP file contains requests or line breaks
-file = { SOI ~ (separator | request ~ NEWLINE* )* ~ EOI}
+file = { SOI ~ (separator | request)* ~ EOI}
 
 request = {	
 	request_line ~
-    (NEWLINE ~ headers | NEWLINE)? ~
-    (NEWLINE ~ body | NEWLINE)?
+    headers? ~
+    NEWLINE ~
+    body?
 }
 
-separator = { "#"{3} ~ NEWLINE* }
+separator = { "#"{3} ~ NEWLINE+ }
 
-request_line = _{ method ~ " "+ ~ uri ~ " "+ ~ "HTTP/" ~ version }
+request_line = _{ method ~ " "+ ~ uri ~ " "+ ~ "HTTP/" ~ version ~ NEWLINE }
 // URLs can contain any char except for white spaces
 uri = { (!whitespace ~ ANY)+ }
 method = { ("GET" | "DELETE" | "POST" | "PUT") }

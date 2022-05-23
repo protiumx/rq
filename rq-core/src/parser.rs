@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_http_methods() {
         for method in HttpMethod::iterator() {
-            let input = format!("{} test.dev HTTP/1.1", method);
+            let input = format!("{} test.dev HTTP/1.1\n\n", method);
             let file = assert_parses(input.as_str());
             assert_eq!(file.requests.len(), 1);
             assert_eq!(
@@ -243,6 +243,7 @@ authorization: token
 ###
 
 GET test.dev HTTP/1
+
 "#;
         let file = assert_parses(input);
         assert_eq!(file.requests.len(), 2);

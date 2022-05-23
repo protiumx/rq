@@ -15,7 +15,7 @@ whitespace = _{ " " | "\t" }
 
 headers = { header+ }
 header = { header_name ~ ":" ~ whitespace ~ header_value ~ NEWLINE }
-header_name = { (!NEWLINE ~ !":" ~ ANY)+ }
+header_name = { (!(NEWLINE | ":") ~ ANY)+ }
 header_value = { (!NEWLINE ~ ANY)+ }
 
 body = { (!delimiter ~ ANY)+ }

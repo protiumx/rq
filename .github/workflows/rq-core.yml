@@ -4,13 +4,15 @@ on:
     paths:
       - .github/workflows/rq-core.yml
       - rq-core/**/*.rs
-      - rq-core/**/Cargo.toml
+      - rq-core/**/cargo.toml
+      - '!**/*.http'
     
   push:
     paths:
       - .github/workflows/rq-core.yml
       - rq-core/**/*.rs
-      - rq-core/**/Cargo.toml
+      - rq-core/**/cargo.toml
+      - '!**/*.http'
     branches:
       - main
 

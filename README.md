@@ -7,6 +7,8 @@
 alternative to [vscode-restclient](https://github.com/Huachao/vscode-restclient).
 `rq` follows the standard [RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html).
 
+Blogpost: https://protiumx.github.io/blog/posts/an-http-request-parser-with-rust-and-pest-rs/
+
 This project was born out of my boredom and curiosity about [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar).
 
 ## Dependencies

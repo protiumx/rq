@@ -14,7 +14,7 @@ This project was born out of my boredom and curiosity about [PEG](https://en.wik
 ## Dependencies
 
 - [pest](https://github.com/pest-parser/pest): PEG parser 
-- [reqwest](https://github.com/seanmonstar/reqwest): 
+- [reqwest](https://github.com/seanmonstar/reqwest): HTTP requests
 - [tui-rs](https://github.com/fdehau/tui-rs/): TUI library
 - [crossterm](https://github.com/crossterm-rs/crossterm): tui-rs backend
 - [tokio](https://github.com/tokio-rs/tokio): asynchronous runtime

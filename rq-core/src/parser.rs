@@ -12,12 +12,18 @@ use std::slice::Iter;
 #[grammar = "grammar.pest"]
 struct HttpParser;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HttpMethod {
     Get,
     Post,
     Put,
     Delete,
+}
+
+impl Default for HttpMethod {
+    fn default() -> Self {
+        HttpMethod::Get
+    }
 }
 
 impl HttpMethod {
@@ -57,7 +63,7 @@ impl Display for HttpMethod {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct HttpRequest {
     pub method: HttpMethod,
     pub url: String,
@@ -90,7 +96,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for HttpRequest {
                     ret.parse_headers(item.into_inner());
                 }
                 Rule::body => {
-                    ret.body = item.as_str().to_string();
+                    ret.body = item.as_str().trim().to_string();
                 }
                 _ => {
                     unreachable!();

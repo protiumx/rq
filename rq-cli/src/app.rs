@@ -64,7 +64,6 @@ impl App {
 }
 
 pub async fn run(http_file: HttpFile) -> Result<(), Box<dyn Error>> {
-    // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -72,7 +71,6 @@ pub async fn run(http_file: HttpFile) -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear().unwrap();
 
-    // create app and run it
     let tick_rate = Duration::from_millis(250);
     let app = Arc::new(tokio::sync::Mutex::new(App::new(http_file)));
     let res = run_app(&mut terminal, app, tick_rate).await;

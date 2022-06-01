@@ -154,7 +154,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let items: Vec<ListItem> = app
         .requests
         .iter()
-        .map(|i| ListItem::new(draw_request(&i)))
+        .map(|i| ListItem::new(draw_request(i)))
         .collect();
 
     let list = List::new(items)
@@ -176,7 +176,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     );
 }
 
-fn draw_request<'a>(req: &'a HttpRequest) -> Vec<Spans<'a>> {
+fn draw_request(req: &'_ HttpRequest) -> Vec<Spans<'_>> {
     let mut spans = vec![Spans::from(vec![
         Span::styled(req.method.to_string(), Style::default().fg(Color::Green)),
         Span::raw(format!(" {} HTTP/{}", req.url, req.version)),

@@ -1,12 +1,12 @@
 use rq_core::parser::parse;
-use rq_core::request::HttpClient;
+
+mod app;
 
 use std::env;
 use std::fs;
 
-use inquire::Select;
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
         println!("No files provided");
@@ -16,12 +16,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file_content = fs::read_to_string(args[1].as_str())?;
     let http_file = parse(&file_content).unwrap();
 
-    let request = Select::new("Select requests to execute:", http_file.requests)
-        .prompt()
-        .unwrap();
+    // clear screen
+    //println!("\r\x1b[2J\r\x1b[H");
 
-    let client = HttpClient::new();
-    client.execute(&request)?;
+    //for req in http_file.requests {
+    //println!("  {}\n", req.print());
+    //}
+    //println!("\x1b[H");
+    //print!("\x1b[32m>");
 
-    Ok(())
+    //io::stdout().flush().unwrap();
+
+    app::run(http_file).await.unwrap();
+
+    std::process::exit(0)
 }

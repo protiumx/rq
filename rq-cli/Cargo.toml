@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 rq-core = { path = "../rq-core" }
 
-inquire = "0.2.1"
+tui = "0.18"
+crossterm = "0.23"
+tokio = { version = "1", features = ["full"] }

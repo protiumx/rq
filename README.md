@@ -1,7 +1,7 @@
 # rq
 [![rq-core](https://github.com/protiumx/rq/actions/workflows/rq-core.yml/badge.svg)](https://github.com/protiumx/rq/actions/workflows/rq-core.yml)
 
-![preview](./preview-cli.gif)
+![preview](./preview.gif)
 
 `rq` is an interactive HTTP client that parses and execute requests. It attempts to provide a minimal CLI 
 alternative to [vscode-restclient](https://github.com/Huachao/vscode-restclient).

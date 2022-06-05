@@ -9,14 +9,6 @@ POST https://protiumx.github.io HTTP/1.1
 
 PUT https://protiumx.github.io HTTP/1.1
 
-###
-
-DELETE caca HTTP/1.1
-
-###
-
-POST https://rq-rust.free.beeceptor.com/api HTTP/1.1
-
 {
   "hello": "hola"
 }
@@ -25,31 +17,7 @@ POST https://rq-rust.free.beeceptor.com/api HTTP/1.1
 
 POST https://protiumx.github.io HTTP/1.1
 
-{
-  "hello": "hola"
-}
 ###
 
 PUT https://protiumx.github.io HTTP/1.1
-
-{
-  "hello": "hola"
-}
-
-###
-
-DELETE caca HTTP/1.1
-
-###
-
-
-POST https://protiumx.github.io HTTP/1.1
-
-###
-
-PUT https://protiumx.github.io HTTP/1.1
-
-###
-
-DELETE caca HTTP/1.1
 

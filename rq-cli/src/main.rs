@@ -1,6 +1,9 @@
 use rq_core::parser::parse;
 
 mod app;
+mod terminal;
+
+use app::App;
 
 use std::env;
 use std::fs;
@@ -13,10 +16,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let file_content = fs::read_to_string(args[1].as_str())?;
+    let file_path = args[1].to_string();
+    let file_content = fs::read_to_string(&file_path)?;
     let http_file = parse(&file_content)?;
 
-    app::run(http_file).await?;
+    let app = App::new(file_path, http_file);
+    terminal::start(app).await?;
 
     std::process::exit(0)
 }

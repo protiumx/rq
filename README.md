@@ -3,14 +3,14 @@
 
 ![preview](./preview.gif)
 
-`rq` is an interactive HTTP client that parses and execute requests. It attempts to provide a minimal CLI 
+`rq` is an interactive HTTP client that parses and executes requests. It attempts to provide a minimal CLI 
 alternative to [vscode-restclient](https://github.com/Huachao/vscode-restclient).
 `rq` follows the standard [RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html).
 
 Blogpost: https://protiumx.github.io/blog/posts/an-http-request-parser-with-rust-and-pest-rs/
 
 This project was born out of my boredom and curiosity about [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar).
-I'm wishing it will with help of the open source community.
+I'm hope it will help the open source community.
 
 ## Dependencies
 

@@ -18,7 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let file_path = args[1].to_string();
     let file_content = fs::read_to_string(&file_path)?;
-    let http_file = parse(&file_content)?;
+
+    let http_file = match parse(&file_content) {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("parsing error: {e}");
+            std::process::exit(1);
+        }
+    };
 
     let app = App::new(file_path, http_file);
     terminal::start(app).await?;

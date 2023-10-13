@@ -3,7 +3,6 @@ use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::fmt::Display;
 use std::result::Result;
 use std::slice::Iter;
@@ -33,17 +32,15 @@ impl HttpMethod {
     }
 }
 
-impl<'i> TryFrom<Pair<'i, Rule>> for HttpMethod {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
-        Ok(match pair.as_str() {
+impl<'i> From<Pair<'i, Rule>> for HttpMethod {
+    fn from(pair: Pair<'i, Rule>) -> Self {
+        match pair.as_str() {
             "GET" => Self::Get,
             "POST" => Self::Post,
             "PUT" => Self::Put,
             "DELETE" => Self::Delete,
             _ => unreachable!(),
-        })
+        }
     }
 }
 
@@ -67,18 +64,16 @@ pub struct HttpRequest {
     pub body: String,
 }
 
-impl<'i> TryFrom<Pair<'i, Rule>> for HttpRequest {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<'i, Rule>) -> Result<Self, Self::Error> {
-        let mut iterator = pair.into_inner();
+impl<'i> From<Pair<'i, Rule>> for HttpRequest {
+    fn from(request: Pair<'i, Rule>) -> Self {
+        let mut iterator = request.into_inner();
         // {
         //  method target version
         //  headers
         //  body
         // }
         let mut ret = Self {
-            method: iterator.next().unwrap().try_into()?,
+            method: iterator.next().unwrap().into(),
             url: iterator.next().unwrap().as_str().to_string(),
             version: iterator.next().unwrap().as_str().to_string(),
             headers: HashMap::new(),
@@ -99,7 +94,7 @@ impl<'i> TryFrom<Pair<'i, Rule>> for HttpRequest {
             }
         }
 
-        Ok(ret)
+        ret
     }
 }
 
@@ -136,10 +131,9 @@ pub struct HttpFile {
     pub requests: Vec<HttpRequest>,
 }
 
-impl<'i> TryFrom<Pair<'i, Rule>> for HttpFile {
-    type Error = Error<Rule>;
+impl<'i> From<Pair<'i, Rule>> for HttpFile {
+    fn from(pair: Pair<Rule>) -> Self {
 
-    fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
         let iterator = pair.into_inner();
         let mut requests = vec![];
         for item in iterator {
@@ -148,12 +142,12 @@ impl<'i> TryFrom<Pair<'i, Rule>> for HttpFile {
                     break;
                 }
                 Rule::request => {
-                    requests.push(item.try_into()?);
+                    requests.push(item.into());
                 }
                 _ => {}
             }
         }
-        Ok(Self { requests })
+        Self { requests }
     }
 }
 
@@ -171,11 +165,10 @@ impl Display for HttpFile {
 }
 
 pub fn parse(input: &str) -> Result<HttpFile, Box<Error<Rule>>> {
-    let file = HttpParser::parse(Rule::file, input.trim_start())
-        .expect("unable to parse")
+    let pair = HttpParser::parse(Rule::file, input.trim_start())?
         .next()
         .unwrap();
-    Ok(HttpFile::try_from(file)?)
+    Ok(HttpFile::from(pair))
 }
 
 #[cfg(test)]

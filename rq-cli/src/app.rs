@@ -110,8 +110,8 @@ impl App {
                     self.exited = true;
                 }
             }
-            KeyCode::Down => self.next(),
-            KeyCode::Up => self.previous(),
+            KeyCode::Down | KeyCode::Char('j') => self.next(),
+            KeyCode::Up | KeyCode::Char('k') => self.previous(),
             KeyCode::Enter => {
                 self.response_buffer = String::from("Loading...");
                 self.req_tx.send(self.selected_request()).await?;

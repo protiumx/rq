@@ -14,6 +14,7 @@ use rq_core::parser::HttpRequest;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
+    prelude::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
@@ -75,6 +76,16 @@ async fn run_app<B: Backend>(
     }
 }
 
+fn selected_chunk_index(chunks: &[Rect], (x, y): (u16, u16)) -> Option<usize> {
+    for (i, chunk) in chunks.iter().enumerate() {
+        if chunk.x <= x && x < chunk.x + chunk.width && chunk.y <= y && y < chunk.y + chunk.height {
+            return Some(i);
+        }
+    }
+
+    None
+}
+
 fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     let frame_size = f.size();
 
@@ -89,6 +100,23 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(frame_size);
 
+    let selected_chunk = selected_chunk_index(&chunks, app.cursor_position);
+
+    let (list_border_style, buffer_border_style) = match selected_chunk {
+        Some(0) => (Style::default().fg(Color::Blue), Style::default()),
+        Some(1) => (Style::default(), Style::default().fg(Color::Blue)),
+        _ => unreachable!(),
+    };
+
+    let list_block = Block::default()
+        .borders(Borders::ALL)
+        .title(format!(">> {} <<", app.file_path.as_str()))
+        .border_style(list_border_style);
+
+    let buffer_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(buffer_border_style);
+
     let request_spans: Vec<ListItem> = app
         .list
         .items
@@ -96,9 +124,6 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .map(|i| ListItem::new(draw_request(i)))
         .collect();
 
-    let mut list_block = Block::default()
-        .borders(Borders::ALL)
-        .title(format!(">> {} <<", app.file_path.as_str()));
     let list = List::new(request_spans)
         .highlight_style(
             Style::default()
@@ -107,15 +132,6 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .highlight_symbol("> ");
 
-    let cursor_x = app.cursor_position.0;
-    if chunks[0].x <= cursor_x && cursor_x < chunks[0].x + chunks[0].width {
-        list_block = list_block.border_style(Style::default().fg(Color::Blue));
-    }
-
-    let mut buffer_block = Block::default().borders(Borders::ALL);
-    if chunks[1].x <= cursor_x && cursor_x < chunks[1].x + chunks[1].width {
-        buffer_block = buffer_block.border_style(Style::default().fg(Color::Blue));
-    }
     let buffer = Paragraph::new(app.response_buffer.as_str()).wrap(Wrap { trim: true });
 
     f.render_stateful_widget(list.block(list_block), chunks[0], &mut app.list.state);
@@ -123,7 +139,7 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
 }
 
 fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {
-    let mut spans = vec![Line::from(vec![
+    let mut lines = vec![Line::from(vec![
         Span::styled(req.method.to_string(), Style::default().fg(Color::Green)),
         Span::raw(format!(" {} HTTP/{}", req.url, req.version)),
     ])];
@@ -134,15 +150,15 @@ fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {
         .map(|(k, v)| Line::from(format!("{}: {}", k, v)))
         .collect();
 
-    spans.extend(headers);
+    lines.extend(headers);
     // new line
-    spans.push(Line::from(""));
+    lines.push(Line::from(""));
     if !req.body.is_empty() {
-        spans.push(Line::styled(
+        lines.push(Line::styled(
             req.body.as_str(),
             Style::default().fg(Color::Rgb(246, 69, 42)),
         ));
-        spans.push(Line::from(""));
+        lines.push(Line::from(""));
     }
-    spans
+    lines
 }

@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    io,
+    io::{self},
     time::{Duration, Instant},
 };
 
@@ -76,11 +76,18 @@ async fn run_app<B: Backend>(
 }
 
 fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    // Create two chunks with equal horizontal screen space
+    let frame_size = f.size();
+
+    let direction = match frame_size.width >= frame_size.height {
+        true => Direction::Horizontal,
+        false => Direction::Vertical,
+    };
+
+    // Create two chunks with equal screen space
     let chunks = Layout::default()
-        .direction(Direction::Horizontal)
+        .direction(direction)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-        .split(f.size());
+        .split(frame_size);
 
     let request_spans: Vec<ListItem> = app
         .requests

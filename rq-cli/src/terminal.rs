@@ -11,11 +11,11 @@ use crossterm::{
 };
 use rq_core::parser::HttpRequest;
 
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
@@ -114,27 +114,27 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_widget(buffer.block(buffer_block), chunks[1]);
 }
 
-fn draw_request(req: &'_ HttpRequest) -> Vec<Spans<'_>> {
-    let mut spans = vec![Spans::from(vec![
+fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {
+    let mut spans = vec![Line::from(vec![
         Span::styled(req.method.to_string(), Style::default().fg(Color::Green)),
         Span::raw(format!(" {} HTTP/{}", req.url, req.version)),
     ])];
 
-    let headers: Vec<Spans> = req
+    let headers: Vec<Line> = req
         .headers()
         .iter()
-        .map(|(k, v)| Spans::from(format!("{}: {}", k, v)))
+        .map(|(k, v)| Line::from(format!("{}: {}", k, v)))
         .collect();
 
     spans.extend(headers);
     // new line
-    spans.push(Spans::from(""));
+    spans.push(Line::from(""));
     if !req.body.is_empty() {
-        spans.push(Spans::from(Span::styled(
+        spans.push(Line::styled(
             req.body.as_str(),
             Style::default().fg(Color::Rgb(246, 69, 42)),
-        )));
-        spans.push(Spans::from(""));
+        ));
+        spans.push(Line::from(""));
     }
     spans
 }

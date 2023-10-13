@@ -7,7 +7,7 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 
-use tui::widgets::ListState;
+use ratatui::widgets::ListState;
 
 pub struct App {
     res_rx: Receiver<String>,

@@ -55,74 +55,88 @@ impl Display for HttpMethod {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct HttpHeaders(HashMap<String, String>);
+
+impl Display for HttpHeaders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self
+            .0
+            .iter()
+            .map(|(key, value)| format!("{key}: {value}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        write!(f, "[{s}]")
+    }
+}
+
+impl<'i> From<Pairs<'i, Rule>> for HttpHeaders {
+    fn from(pairs: Pairs<'i, Rule>) -> Self {
+        let headers = pairs
+            .map(|pair| {
+                let mut kv = pair.into_inner();
+                let key = kv.next().unwrap().as_str().to_string();
+                let value = kv.next().unwrap().as_str().to_string();
+
+                (key, value)
+            })
+            .collect();
+
+        HttpHeaders(headers)
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct HttpRequest {
     pub method: HttpMethod,
     pub url: String,
     pub version: String,
-    pub headers: HashMap<String, String>,
+    headers: HttpHeaders,
     pub body: String,
+}
+
+impl HttpRequest {
+    pub fn headers(&self) -> &HashMap<String, String> {
+        &self.headers.0
+    }
 }
 
 impl<'i> From<Pair<'i, Rule>> for HttpRequest {
     fn from(request: Pair<'i, Rule>) -> Self {
-        let mut iterator = request.into_inner();
-        // {
-        //  method target version
-        //  headers
-        //  body
-        // }
-        let mut ret = Self {
-            method: iterator.next().unwrap().into(),
-            url: iterator.next().unwrap().as_str().to_string(),
-            version: iterator.next().unwrap().as_str().to_string(),
-            headers: HashMap::new(),
-            body: String::new(),
-        };
+        let mut pairs = request.into_inner().peekable();
 
-        for item in iterator {
-            match item.as_rule() {
-                Rule::headers => {
-                    ret.parse_headers(item.into_inner());
-                }
-                Rule::body => {
-                    ret.body = item.as_str().trim().to_string();
-                }
-                _ => {
-                    unreachable!();
-                }
-            }
-        }
+        let method: HttpMethod = pairs.next().unwrap().into();
+        let url = pairs.next().unwrap().as_str().to_string();
+        let version = pairs.next().unwrap().as_str().to_string();
 
-        ret
-    }
-}
+        let headers: HttpHeaders = pairs
+            .next_if(|pair| pair.as_rule() == Rule::headers)
+            .map(|pair| pair.into_inner().into())
+            .unwrap_or_default();
 
-impl HttpRequest {
-    fn parse_headers(&mut self, pairs: Pairs<Rule>) {
-        for item in pairs {
-            let mut kv = item.into_inner();
-            let key = kv.next().unwrap().as_str().to_string();
-            let value = kv.next().unwrap().as_str().to_string();
-            self.headers.insert(key, value);
+        let body = pairs
+            .next()
+            .map(|pair| pair.as_str().to_string())
+            .unwrap_or_default();
+
+        Self {
+            method,
+            url,
+            version,
+            headers,
+            body,
         }
     }
 }
 
 impl Display for HttpRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {} HTTP/{}", self.method, self.url, self.version)?;
-        if !self.headers.is_empty() {
-            f.write_str(" [")?;
-            for (i, (k, v)) in self.headers.iter().enumerate() {
-                write!(f, "{}: {}", k, v)?;
-                if i != self.headers.len() - 1 {
-                    f.write_str(", ")?;
-                }
-            }
-            f.write_str("]")?
-        }
-        Ok(())
+        write!(
+            f,
+            "{} {} HTTP/{} {}",
+            self.method, self.url, self.version, self.headers
+        )
     }
 }
 
@@ -133,20 +147,14 @@ pub struct HttpFile {
 
 impl<'i> From<Pair<'i, Rule>> for HttpFile {
     fn from(pair: Pair<Rule>) -> Self {
+        let requests = pair
+            .into_inner()
+            .filter_map(|pair| match pair.as_rule() {
+                Rule::request => Some(pair.into()),
+                _ => None,
+            })
+            .collect();
 
-        let iterator = pair.into_inner();
-        let mut requests = vec![];
-        for item in iterator {
-            match item.as_rule() {
-                Rule::EOI => {
-                    break;
-                }
-                Rule::request => {
-                    requests.push(item.into());
-                }
-                _ => {}
-            }
-        }
         Self { requests }
     }
 }
@@ -195,7 +203,7 @@ mod tests {
             assert_eq!(file.requests.len(), 1);
             assert_eq!(
                 file.requests[0].to_string(),
-                format!("{} test.dev HTTP/1.1", method)
+                format!("{} test.dev HTTP/1.1 []", method)
             );
         }
     }
@@ -208,9 +216,9 @@ authorization: Bearer xxxx
 
 "#;
         let file = assert_parses(input);
-        assert_eq!(file.requests[0].headers.len(), 1);
+        assert_eq!(file.requests[0].headers.0.len(), 1);
         assert_eq!(
-            file.requests[0].headers.get("authorization").unwrap(),
+            file.requests[0].headers.0.get("authorization").unwrap(),
             "Bearer xxxx"
         );
     }
@@ -240,7 +248,7 @@ GET test.dev HTTP/1
         assert_eq!(file.requests.len(), 2);
         assert_eq!(
             file.to_string(),
-            "#0\nPOST test.dev HTTP/1 [authorization: token]\n#1\nGET test.dev HTTP/1\n"
+            "#0\nPOST test.dev HTTP/1 [authorization: token]\n#1\nGET test.dev HTTP/1 []\n"
         );
     }
 }

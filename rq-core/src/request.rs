@@ -30,7 +30,7 @@ pub async fn execute(
     let request =
         new_client().request(Method::from_str(req.method.to_string().as_str())?, &req.url);
 
-    let headers: header::HeaderMap = (&req.headers).try_into()?;
+    let headers: header::HeaderMap = (req.headers()).try_into()?;
 
     let body = req.body.clone();
     let res = request.headers(headers).body(body).send().await?;

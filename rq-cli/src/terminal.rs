@@ -121,7 +121,7 @@ fn draw_request(req: &'_ HttpRequest) -> Vec<Spans<'_>> {
     ])];
 
     let headers: Vec<Spans> = req
-        .headers
+        .headers()
         .iter()
         .map(|(k, v)| Spans::from(format!("{}: {}", k, v)))
         .collect();

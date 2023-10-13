@@ -95,11 +95,8 @@ impl App {
     }
 
     fn on_mouse_event(&mut self, ev: MouseEvent) {
-        match ev.kind {
-            MouseEventKind::Up(MouseButton::Left) => {
-                self.cursor_position = (ev.column, ev.row);
-            }
-            _ => {}
+        if let MouseEventKind::Up(MouseButton::Left) = ev.kind {
+            self.cursor_position = (ev.column, ev.row);
         }
     }
 

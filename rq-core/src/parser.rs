@@ -12,18 +12,13 @@ use std::slice::Iter;
 #[grammar = "grammar.pest"]
 struct HttpParser;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum HttpMethod {
+    #[default]
     Get,
     Post,
     Put,
     Delete,
-}
-
-impl Default for HttpMethod {
-    fn default() -> Self {
-        HttpMethod::Get
-    }
 }
 
 impl HttpMethod {
@@ -175,12 +170,12 @@ impl Display for HttpFile {
     }
 }
 
-pub fn parse(input: &str) -> Result<HttpFile, Error<Rule>> {
+pub fn parse(input: &str) -> Result<HttpFile, Box<Error<Rule>>> {
     let file = HttpParser::parse(Rule::file, input.trim_start())
         .expect("unable to parse")
         .next()
         .unwrap();
-    HttpFile::try_from(file)
+    Ok(HttpFile::try_from(file)?)
 }
 
 #[cfg(test)]

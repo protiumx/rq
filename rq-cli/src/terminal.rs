@@ -14,14 +14,13 @@ use rq_core::parser::HttpRequest;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    prelude::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
 
-use crate::app::App;
+use crate::app::{App, FocusState};
 
 pub async fn start(app: App) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
@@ -66,7 +65,7 @@ async fn run_app<B: Backend>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             app.on_terminal_event(event::read()?).await?;
-            if app.exited {
+            if app.should_exit {
                 return Ok(());
             }
         }
@@ -74,16 +73,6 @@ async fn run_app<B: Backend>(
             last_tick = Instant::now();
         }
     }
-}
-
-fn selected_chunk_index(chunks: &[Rect], (x, y): (u16, u16)) -> Option<usize> {
-    for (i, chunk) in chunks.iter().enumerate() {
-        if chunk.x <= x && x < chunk.x + chunk.width && chunk.y <= y && y < chunk.y + chunk.height {
-            return Some(i);
-        }
-    }
-
-    None
 }
 
 fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
@@ -100,12 +89,9 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
         .split(frame_size);
 
-    let selected_chunk = selected_chunk_index(&chunks, app.cursor_position);
-
-    let (list_border_style, buffer_border_style) = match selected_chunk {
-        Some(0) => (Style::default().fg(Color::Blue), Style::default()),
-        Some(1) => (Style::default(), Style::default().fg(Color::Blue)),
-        _ => unreachable!(),
+    let (list_border_style, buffer_border_style) = match app.focus {
+        FocusState::RequestsList => (Style::default().fg(Color::Blue), Style::default()),
+        FocusState::ResponseBuffer => (Style::default(), Style::default().fg(Color::Blue)),
     };
 
     let list_block = Block::default()

@@ -3,11 +3,16 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use std::error::Error;
 
-use crossterm::event::{
-    Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::ui::StatefulList;
+
+#[derive(Default)]
+pub enum FocusState {
+    #[default]
+    RequestsList,
+    ResponseBuffer,
+}
 
 pub struct App {
     res_rx: Receiver<String>,
@@ -16,8 +21,9 @@ pub struct App {
     pub response_buffer: String,
     pub list: StatefulList<HttpRequest>,
     pub cursor_position: (u16, u16),
-    pub exited: bool,
+    pub should_exit: bool,
     pub file_path: String,
+    pub focus: FocusState,
 }
 
 fn handle_requests(mut req_rx: Receiver<HttpRequest>, res_tx: Sender<String>) {
@@ -46,7 +52,8 @@ impl App {
             list: StatefulList::with_items(http_file.requests),
             response_buffer: String::new(),
             cursor_position: (0, 0),
-            exited: false,
+            should_exit: false,
+            focus: FocusState::default(),
         }
     }
 
@@ -57,34 +64,36 @@ impl App {
     }
 
     pub async fn on_terminal_event(&mut self, event: Event) -> Result<(), Box<dyn Error>> {
-        match event {
-            Event::Key(ev) => self.on_key_event(ev).await?,
-            Event::Mouse(ev) => {
-                self.on_mouse_event(ev);
-            }
-            _ => {}
+        if let Event::Key(ev) = event {
+            self.on_key_event(ev).await?;
         }
         Ok(())
-    }
-
-    fn on_mouse_event(&mut self, ev: MouseEvent) {
-        if let MouseEventKind::Up(MouseButton::Left) = ev.kind {
-            self.cursor_position = (ev.column, ev.row);
-        }
     }
 
     async fn on_key_event(&mut self, event: KeyEvent) -> Result<(), Box<dyn Error>> {
         match event.code {
             KeyCode::Char('q') | KeyCode::Char('Q') => {
-                self.exited = true;
+                self.should_exit = true;
             }
             KeyCode::Char('c') => {
                 if event.modifiers == KeyModifiers::CONTROL {
-                    self.exited = true;
+                    self.should_exit = true;
                 }
             }
-            KeyCode::Down | KeyCode::Char('j') => self.list.next(),
-            KeyCode::Up | KeyCode::Char('k') => self.list.previous(),
+            KeyCode::Down | KeyCode::Char('j')
+                if matches!(self.focus, FocusState::RequestsList) =>
+            {
+                self.list.next()
+            }
+            KeyCode::Up | KeyCode::Char('k') if matches!(self.focus, FocusState::RequestsList) => {
+                self.list.previous()
+            }
+            KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {
+                self.focus = match self.focus {
+                    FocusState::RequestsList => FocusState::ResponseBuffer,
+                    FocusState::ResponseBuffer => FocusState::RequestsList,
+                }
+            }
             KeyCode::Enter => {
                 self.response_buffer = String::from("Loading...");
                 self.req_tx.send(self.list.selected().clone()).await?;

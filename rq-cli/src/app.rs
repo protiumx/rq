@@ -7,15 +7,14 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 
-use ratatui::widgets::ListState;
+use crate::ui::StatefulList;
 
 pub struct App {
     res_rx: Receiver<String>,
     req_tx: Sender<HttpRequest>,
 
-    pub requests: Vec<HttpRequest>,
     pub response_buffer: String,
-    pub list: ListState,
+    pub list: StatefulList<HttpRequest>,
     pub cursor_position: (u16, u16),
     pub exited: bool,
     pub file_path: String,
@@ -44,35 +43,11 @@ impl App {
             file_path,
             res_rx,
             req_tx,
-            list: ListState::default().with_selected(Some(0)),
-            requests: http_file.requests,
+            list: StatefulList::with_items(http_file.requests),
             response_buffer: String::new(),
             cursor_position: (0, 0),
             exited: false,
         }
-    }
-
-    fn selected_request(&self) -> HttpRequest {
-        self.requests[self.list.selected().unwrap()].clone()
-    }
-
-    fn next(&mut self) {
-        let mut i = self.list.selected().unwrap() + 1;
-        if i >= self.requests.len() {
-            i = 0;
-        }
-
-        self.list.select(Some(i));
-    }
-
-    fn previous(&mut self) {
-        let mut i = self.list.selected().unwrap();
-        if i == 0 {
-            i = self.requests.len() - 1;
-        } else {
-            i -= 1;
-        }
-        self.list.select(Some(i));
     }
 
     pub fn tick(&mut self) {
@@ -108,11 +83,11 @@ impl App {
                     self.exited = true;
                 }
             }
-            KeyCode::Down | KeyCode::Char('j') => self.next(),
-            KeyCode::Up | KeyCode::Char('k') => self.previous(),
+            KeyCode::Down | KeyCode::Char('j') => self.list.next(),
+            KeyCode::Up | KeyCode::Char('k') => self.list.previous(),
             KeyCode::Enter => {
                 self.response_buffer = String::from("Loading...");
-                self.req_tx.send(self.selected_request()).await?;
+                self.req_tx.send(self.list.selected().clone()).await?;
             }
             _ => {}
         }

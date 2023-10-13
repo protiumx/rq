@@ -90,7 +90,8 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .split(frame_size);
 
     let request_spans: Vec<ListItem> = app
-        .requests
+        .list
+        .items
         .iter()
         .map(|i| ListItem::new(draw_request(i)))
         .collect();
@@ -117,7 +118,7 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     }
     let buffer = Paragraph::new(app.response_buffer.as_str()).wrap(Wrap { trim: true });
 
-    f.render_stateful_widget(list.block(list_block), chunks[0], &mut app.list);
+    f.render_stateful_widget(list.block(list_block), chunks[0], &mut app.list.state);
     f.render_widget(buffer.block(buffer_block), chunks[1]);
 }
 

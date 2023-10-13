@@ -2,6 +2,7 @@ use rq_core::parser::parse;
 
 mod app;
 mod terminal;
+mod ui;
 
 use app::App;
 

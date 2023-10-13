@@ -40,13 +40,11 @@ impl App {
 
         handle_requests(req_rx, res_tx);
 
-        let mut list = ListState::default();
-        list.select(Some(0));
         App {
             file_path,
             res_rx,
             req_tx,
-            list,
+            list: ListState::default().with_selected(Some(0)),
             requests: http_file.requests,
             response_buffer: String::new(),
             cursor_position: (0, 0),

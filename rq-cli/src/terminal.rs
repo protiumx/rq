@@ -1,6 +1,6 @@
 use std::{
     error::Error,
-    io::{self},
+    io,
     time::{Duration, Instant},
 };
 

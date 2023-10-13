@@ -5,7 +5,6 @@ use pest::Parser;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::result::Result;
-use std::slice::Iter;
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
@@ -18,18 +17,6 @@ pub enum HttpMethod {
     Post,
     Put,
     Delete,
-}
-
-impl HttpMethod {
-    pub fn iterator() -> Iter<'static, HttpMethod> {
-        static METHODS: [HttpMethod; 4] = [
-            HttpMethod::Get,
-            HttpMethod::Post,
-            HttpMethod::Put,
-            HttpMethod::Delete,
-        ];
-        METHODS.iter()
-    }
 }
 
 impl<'i> From<Pair<'i, Rule>> for HttpMethod {
@@ -197,7 +184,13 @@ mod tests {
 
     #[test]
     fn test_http_methods() {
-        for method in HttpMethod::iterator() {
+        const METHODS: [HttpMethod; 4] = [
+            HttpMethod::Get,
+            HttpMethod::Post,
+            HttpMethod::Put,
+            HttpMethod::Delete,
+        ];
+        for method in METHODS {
             let input = format!("{} test.dev HTTP/1.1\n\n", method);
             let file = assert_parses(input.as_str());
             assert_eq!(file.requests.len(), 1);

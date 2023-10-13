@@ -10,7 +10,7 @@ request = {
 request_line = _{ method ~ " "+ ~ uri ~ " "+ ~ "HTTP/" ~ version ~ NEWLINE }
 uri = { (!whitespace ~ ANY)+ }
 method = { ("GET" | "DELETE" | "POST" | "PUT") }
-version = { (ASCII_DIGIT | ".")+ }
+version = { (ASCII_DIGIT+ ~ ".")* ~ ASCII_DIGIT+ }
 whitespace = _{ " " | "\t" }
 
 headers = { header+ }

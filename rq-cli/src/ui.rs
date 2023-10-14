@@ -1,4 +1,4 @@
-use ratatui::widgets::ListState;
+use ratatui::widgets::{ListState, ScrollbarState};
 
 pub struct StatefulList<T> {
     pub state: ListState,
@@ -33,5 +33,28 @@ impl<T> StatefulList<T> {
     pub fn selected(&self) -> &T {
         let i = self.state.selected().unwrap_or(0);
         &self.items[i]
+    }
+
+    pub fn selected_index(&self) -> usize {
+        self.state.selected().unwrap_or(0)
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ScrollBuffer {
+    pub content: String,
+    pub state: ScrollbarState,
+    pub scroll: u16,
+}
+
+impl ScrollBuffer {
+    pub fn next(&mut self) {
+        self.scroll = self.scroll.saturating_add(1);
+        self.state = self.state.position(self.scroll)
+    }
+
+    pub fn prev(&mut self) {
+        self.scroll = self.scroll.saturating_sub(1);
+        self.state = self.state.position(self.scroll)
     }
 }

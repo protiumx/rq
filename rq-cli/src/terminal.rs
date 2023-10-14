@@ -16,7 +16,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
     Frame, Terminal,
 };
 
@@ -118,10 +118,21 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         )
         .highlight_symbol("> ");
 
-    let buffer = Paragraph::new(app.response_buffer.as_str()).wrap(Wrap { trim: true });
+    let response_buffer = &mut app.buffers[app.list.selected_index()];
+    let buffer_content = response_buffer.content.as_str();
+    let buffer_y_scroll = response_buffer.scroll;
+
+    let buffer = Paragraph::new(buffer_content)
+        .wrap(Wrap { trim: true })
+        .scroll((buffer_y_scroll, 0));
 
     f.render_stateful_widget(list.block(list_block), chunks[0], &mut app.list.state);
     f.render_widget(buffer.block(buffer_block), chunks[1]);
+    f.render_stateful_widget(
+        Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight),
+        chunks[1],
+        &mut response_buffer.state,
+    )
 }
 
 fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {

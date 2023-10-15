@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let app = App::new(file_path, http_file);
-    terminal::start(app).await?;
+    terminal::run(app).await?;
 
     std::process::exit(0)
 }

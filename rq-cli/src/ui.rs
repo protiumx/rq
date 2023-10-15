@@ -1,8 +1,8 @@
 use ratatui::widgets::{ListState, ScrollbarState};
 
 pub struct StatefulList<T> {
-    pub state: ListState,
-    pub items: Vec<T>,
+    state: ListState,
+    items: Vec<T>,
 }
 
 impl<T> StatefulList<T> {
@@ -37,6 +37,14 @@ impl<T> StatefulList<T> {
 
     pub fn selected_index(&self) -> usize {
         self.state.selected().unwrap_or(0)
+    }
+
+    pub fn state(&self) -> ListState {
+        self.state.clone()
+    }
+
+    pub fn items(&self) -> &[T] {
+        self.items.as_slice()
     }
 }
 
@@ -75,7 +83,7 @@ impl ScrollBuffer {
         self.scroll
     }
 
-    pub fn state(&mut self) -> &mut ScrollbarState {
-        &mut self.state
+    pub fn state(&self) -> ScrollbarState {
+        self.state
     }
 }

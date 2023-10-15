@@ -119,8 +119,8 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
         .highlight_symbol("> ");
 
     let response_buffer = &mut app.buffers[app.list.selected_index()];
-    let buffer_content = response_buffer.content.as_str();
-    let buffer_y_scroll = response_buffer.scroll;
+    let buffer_content = response_buffer.content();
+    let buffer_y_scroll = response_buffer.scroll();
 
     let buffer = Paragraph::new(buffer_content)
         .wrap(Wrap { trim: true })
@@ -131,7 +131,7 @@ fn draw_ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
     f.render_stateful_widget(
         Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight),
         chunks[1],
-        &mut response_buffer.state,
+        response_buffer.state(),
     )
 }
 

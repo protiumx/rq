@@ -65,13 +65,7 @@ impl App {
 
     pub fn tick(&mut self) {
         if let Ok((res, i)) = self.res_rx.try_recv() {
-            let lines_count = res.lines().count();
-            self.buffers[i].content = res;
-            self.buffers[i].state = self.buffers[i]
-                .state
-                .content_length(lines_count as u16)
-                .position(0);
-            self.buffers[i].scroll = 0;
+            self.buffers[i].overwrite(res);
         }
     }
 

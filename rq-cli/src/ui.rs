@@ -42,9 +42,9 @@ impl<T> StatefulList<T> {
 
 #[derive(Clone, Default)]
 pub struct ScrollBuffer {
-    pub content: String,
-    pub state: ScrollbarState,
-    pub scroll: u16,
+    content: String,
+    state: ScrollbarState,
+    scroll: u16,
 }
 
 impl ScrollBuffer {
@@ -56,5 +56,26 @@ impl ScrollBuffer {
     pub fn prev(&mut self) {
         self.scroll = self.scroll.saturating_sub(1);
         self.state = self.state.position(self.scroll)
+    }
+
+    pub fn overwrite<T: AsRef<str>>(&mut self, new_content: T) {
+        let new_content = new_content.as_ref();
+
+        let line_count = new_content.lines().count();
+        self.content = new_content.to_string();
+        self.state = self.state.content_length(line_count as u16).position(0);
+        self.scroll = 0;
+    }
+
+    pub fn content(&self) -> &str {
+        self.content.as_str()
+    }
+
+    pub fn scroll(&self) -> u16 {
+        self.scroll
+    }
+
+    pub fn state(&mut self) -> &mut ScrollbarState {
+        &mut self.state
     }
 }

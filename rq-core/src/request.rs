@@ -1,6 +1,9 @@
 extern crate reqwest;
 
-use reqwest::{header, Client, Method};
+use reqwest::{
+    header::{self, HeaderMap},
+    Client, Method, StatusCode,
+};
 
 use crate::parser::HttpRequest;
 use std::{str::FromStr, time::Duration};
@@ -24,9 +27,32 @@ fn new_client() -> Client {
         .unwrap()
 }
 
-pub async fn execute(
-    req: &HttpRequest,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+pub struct Response {
+    pub status: StatusCode,
+    pub headers: HeaderMap,
+    pub body: String,
+}
+
+impl Response {
+    async fn from_reqwest(value: reqwest::Response) -> Self {
+        let status = value.status();
+        let headers = value.headers().clone();
+        let body = match value.text().await {
+            Ok(s) => s,
+            Err(e) => e.to_string(),
+        };
+
+        Self {
+            status,
+            headers,
+            body,
+        }
+    }
+}
+
+pub type RequestResult = Result<Response, Box<dyn std::error::Error + Send + Sync>>;
+
+pub async fn execute(req: &HttpRequest) -> RequestResult {
     let request =
         new_client().request(Method::from_str(req.method.to_string().as_str())?, &req.url);
 
@@ -35,6 +61,5 @@ pub async fn execute(
     let body = req.body.clone();
     let res = request.headers(headers).body(body).send().await?;
 
-    let content = res.text().await?;
-    Ok(content)
+    Ok(Response::from_reqwest(res).await)
 }

@@ -2,16 +2,19 @@ use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Scrollbar, ScrollbarOrientation, Wrap},
+    widgets::{Block, Borders, List, ListItem},
 };
-use rq_core::parser::{HttpFile, HttpRequest};
+use rq_core::{
+    parser::{HttpFile, HttpRequest},
+    request::RequestResult,
+};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use std::error::Error;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-use crate::ui::{ScrollBuffer, StatefulList};
+use crate::ui::{ResponseComponent, StatefulList};
 
 #[derive(Default)]
 enum FocusState {
@@ -21,24 +24,23 @@ enum FocusState {
 }
 
 pub struct App {
-    res_rx: Receiver<(String, usize)>,
+    res_rx: Receiver<(RequestResult, usize)>,
     req_tx: Sender<(HttpRequest, usize)>,
 
-    response_buffer: String,
-    buffers: Vec<ScrollBuffer>,
+    responses: Vec<ResponseComponent>,
     list: StatefulList<HttpRequest>,
     should_exit: bool,
     file_path: String,
     focus: FocusState,
 }
 
-fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(String, usize)>) {
+fn handle_requests(
+    mut req_rx: Receiver<(HttpRequest, usize)>,
+    res_tx: Sender<(RequestResult, usize)>,
+) {
     tokio::spawn(async move {
         while let Some((req, i)) = req_rx.recv().await {
-            let data = match rq_core::request::execute(&req).await {
-                Ok(r) => r,
-                Err(e) => e.to_string(),
-            };
+            let data = rq_core::request::execute(&req).await;
             res_tx.send((data, i)).await.unwrap();
         }
     });
@@ -47,11 +49,11 @@ fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(S
 impl App {
     pub fn new(file_path: String, http_file: HttpFile) -> Self {
         let (req_tx, req_rx) = channel::<(HttpRequest, usize)>(1);
-        let (res_tx, res_rx) = channel::<(String, usize)>(1);
+        let (res_tx, res_rx) = channel::<(RequestResult, usize)>(1);
 
         handle_requests(req_rx, res_tx);
 
-        let buffers = std::iter::repeat(ScrollBuffer::default())
+        let responses = std::iter::repeat_with(ResponseComponent::default)
             .take(http_file.requests.len())
             .collect();
 
@@ -59,9 +61,8 @@ impl App {
             file_path,
             res_rx,
             req_tx,
-            buffers,
             list: StatefulList::with_items(http_file.requests),
-            response_buffer: String::new(),
+            responses,
             should_exit: false,
             focus: FocusState::default(),
         }
@@ -79,11 +80,15 @@ impl App {
             }
             KeyCode::Down | KeyCode::Char('j') => match self.focus {
                 FocusState::RequestsList => self.list.next(),
-                FocusState::ResponseBuffer => self.buffers[self.list.selected_index()].next(),
+                FocusState::ResponseBuffer => {
+                    self.responses[self.list.selected_index()].scroll_down()
+                }
             },
             KeyCode::Up | KeyCode::Char('k') => match self.focus {
                 FocusState::RequestsList => self.list.previous(),
-                FocusState::ResponseBuffer => self.buffers[self.list.selected_index()].prev(),
+                FocusState::ResponseBuffer => {
+                    self.responses[self.list.selected_index()].scroll_up()
+                }
             },
             KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {
                 self.focus = match self.focus {
@@ -92,7 +97,6 @@ impl App {
                 }
             }
             KeyCode::Enter => {
-                self.response_buffer = String::from("Loading...");
                 self.req_tx
                     .send((self.list.selected().clone(), self.list.selected_index()))
                     .await?;
@@ -119,10 +123,6 @@ impl App {
             .title(format!(">> {} <<", self.file_path.as_str()))
             .border_style(list_border_style);
 
-        let buffer_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(buffer_border_style);
-
         let request_spans: Vec<ListItem> = self
             .list
             .items()
@@ -138,27 +138,16 @@ impl App {
             )
             .highlight_symbol("> ");
 
-        let response_buffer = &self.buffers[self.list.selected_index()];
-        let buffer_content = response_buffer.content();
-        let buffer_y_scroll = response_buffer.scroll();
-
-        let buffer = Paragraph::new(buffer_content)
-            .wrap(Wrap { trim: true })
-            .scroll((buffer_y_scroll, 0));
+        let response = &self.responses[self.list.selected_index()];
 
         f.render_stateful_widget(list.block(list_block), chunks[0], &mut self.list.state());
-        f.render_widget(buffer.block(buffer_block), chunks[1]);
-        f.render_stateful_widget(
-            Scrollbar::default().orientation(ScrollbarOrientation::VerticalRight),
-            chunks[1],
-            &mut response_buffer.state(),
-        )
+        response.render(f, chunks[1], buffer_border_style);
     }
 
     pub fn update(&mut self) {
         // Poll for request responses
         if let Ok((res, i)) = self.res_rx.try_recv() {
-            self.buffers[i].overwrite(res);
+            self.responses[i] = ResponseComponent::new(res);
         }
     }
 

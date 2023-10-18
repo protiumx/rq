@@ -1,4 +1,11 @@
-use ratatui::widgets::{ListState, ScrollbarState};
+use ratatui::{
+    prelude::Rect,
+    style::Style,
+    widgets::{Block, Borders, ListState, Paragraph, Scrollbar, ScrollbarState, Wrap},
+};
+use rq_core::request::RequestResult;
+
+use crate::terminal::Frame;
 
 pub struct StatefulList<T> {
     state: ListState,
@@ -48,42 +55,58 @@ impl<T> StatefulList<T> {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct ScrollBuffer {
-    content: String,
-    state: ScrollbarState,
+#[derive(Default)]
+pub struct ResponseComponent {
+    response: Option<RequestResult>,
     scroll: u16,
 }
 
-impl ScrollBuffer {
-    pub fn next(&mut self) {
+impl ResponseComponent {
+    pub fn new(response: RequestResult) -> Self {
+        ResponseComponent {
+            response: Some(response),
+            scroll: 0,
+        }
+    }
+
+    pub fn scroll_down(&mut self) {
         self.scroll = self.scroll.saturating_add(1);
-        self.state = self.state.position(self.scroll)
     }
 
-    pub fn prev(&mut self) {
+    pub fn scroll_up(&mut self) {
         self.scroll = self.scroll.saturating_sub(1);
-        self.state = self.state.position(self.scroll)
     }
 
-    pub fn overwrite<T: AsRef<str>>(&mut self, new_content: T) {
-        let new_content = new_content.as_ref();
-
-        let line_count = new_content.lines().count();
-        self.content = new_content.to_string();
-        self.state = self.state.content_length(line_count as u16).position(0);
-        self.scroll = 0;
+    fn get_content(&self) -> String {
+        match self.response.as_ref() {
+            Some(response) => match response.as_ref() {
+                Ok(response) => response.body.clone(),
+                Err(e) => e.to_string(),
+            },
+            None => "Press Enter to send request".into(),
+        }
     }
 
-    pub fn content(&self) -> &str {
-        self.content.as_str()
-    }
+    pub fn render(&self, f: &mut Frame, area: Rect, border_style: Style) {
+        let content = self.get_content();
+        let content_length = content.lines().count();
 
-    pub fn scroll(&self) -> u16 {
-        self.scroll
-    }
+        let component = Paragraph::new(self.get_content())
+            .wrap(Wrap { trim: true })
+            .scroll((self.scroll, 0))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(border_style),
+            );
 
-    pub fn state(&self) -> ScrollbarState {
-        self.state
+        f.render_widget(component, area);
+        f.render_stateful_widget(
+            Scrollbar::default().orientation(ratatui::widgets::ScrollbarOrientation::VerticalRight),
+            area,
+            &mut ScrollbarState::default()
+                .position(self.scroll)
+                .content_length(content_length as u16),
+        )
     }
 }

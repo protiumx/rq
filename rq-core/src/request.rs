@@ -1,8 +1,9 @@
 extern crate reqwest;
 
+pub use reqwest::StatusCode;
 use reqwest::{
     header::{self, HeaderMap},
-    Client, Method, StatusCode,
+    Client, Method,
 };
 
 use crate::parser::HttpRequest;
@@ -30,12 +31,14 @@ fn new_client() -> Client {
 pub struct Response {
     pub status: StatusCode,
     pub headers: HeaderMap,
+    pub version: String,
     pub body: String,
 }
 
 impl Response {
     async fn from_reqwest(value: reqwest::Response) -> Self {
         let status = value.status();
+        let version = format!("{:?}", value.version());
         let headers = value.headers().clone();
         let body = match value.text().await {
             Ok(s) => s,
@@ -44,6 +47,7 @@ impl Response {
 
         Self {
             status,
+            version,
             headers,
             body,
         }

@@ -1,9 +1,10 @@
 use ratatui::{
     prelude::Rect,
-    style::Style,
+    style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, ListState, Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
-use rq_core::request::RequestResult;
+use rq_core::request::{RequestResult, StatusCode};
 
 use crate::terminal::Frame;
 
@@ -61,6 +62,18 @@ pub struct ResponseComponent {
     scroll: u16,
 }
 
+fn status_code_color(status_code: StatusCode) -> Color {
+    if status_code.is_success() {
+        Color::Green
+    } else if status_code.is_redirection() {
+        Color::Yellow
+    } else if status_code.is_client_error() || status_code.is_server_error() {
+        Color::Red
+    } else {
+        Color::default()
+    }
+}
+
 impl ResponseComponent {
     pub fn new(response: RequestResult) -> Self {
         ResponseComponent {
@@ -77,19 +90,54 @@ impl ResponseComponent {
         self.scroll = self.scroll.saturating_sub(1);
     }
 
-    fn get_content(&self) -> String {
+    fn get_content(&self) -> Vec<Line<'_>> {
         match self.response.as_ref() {
             Some(response) => match response.as_ref() {
-                Ok(response) => response.body.clone(),
-                Err(e) => e.to_string(),
+                Ok(response) => {
+                    let mut lines = vec![];
+
+                    // First line
+                    // <VERSION> <STATUS>
+                    lines.push(Line::from(vec![
+                        response.version.clone().into(),
+                        " ".into(),
+                        Span::styled(
+                            response.status.to_string(),
+                            Style::default().fg(status_code_color(response.status)),
+                        ),
+                    ]));
+
+                    // Headers
+                    // <KEY>: <VALUE>
+                    for (k, v) in &response.headers {
+                        lines.push(Line::from(vec![
+                            Span::styled(format!("{k}"), Style::default().fg(Color::Blue)),
+                            ": ".into(),
+                            v.to_str().unwrap().into(),
+                        ]))
+                    }
+
+                    // Body
+                    // with initial empty line
+                    lines.push(Line::from(""));
+                    for line in response.body.lines() {
+                        lines.push(line.into());
+                    }
+
+                    lines
+                }
+                Err(e) => vec![Line::styled(e.to_string(), Style::default().fg(Color::Red))],
             },
-            None => "Press Enter to send request".into(),
+            None => vec![Line::styled(
+                "Press Enter to send request",
+                Style::default().fg(Color::Yellow),
+            )],
         }
     }
 
     pub fn render(&self, f: &mut Frame, area: Rect, border_style: Style) {
         let content = self.get_content();
-        let content_length = content.lines().count();
+        let content_length = content.len();
 
         let component = Paragraph::new(self.get_content())
             .wrap(Wrap { trim: true })

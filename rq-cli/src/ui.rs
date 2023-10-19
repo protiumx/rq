@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use ratatui::{
     prelude::Rect,
     style::{Color, Style},
@@ -156,5 +158,29 @@ impl ResponseComponent {
                 .position(self.scroll)
                 .content_length(content_length as u16),
         )
+    }
+}
+
+impl Display for ResponseComponent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.response.as_ref() {
+            Some(response) => match response.as_ref() {
+                Ok(response) => {
+                    let headers = response
+                        .headers
+                        .iter()
+                        .map(|(k, v)| format!("{k}: {}\n", v.to_str().unwrap()))
+                        .collect::<String>();
+
+                    write!(
+                        f,
+                        "{} {}\n{headers}\n\n{}",
+                        response.version, response.status, response.body
+                    )
+                }
+                Err(e) => write!(f, "error: {e}"),
+            },
+            None => write!(f, "Request not sent"),
+        }
     }
 }

@@ -101,9 +101,23 @@ impl App {
                     .send((self.list.selected().clone(), self.list.selected_index()))
                     .await?;
             }
+            KeyCode::Char('s') => self.save_body_to_file(),
+            KeyCode::Char('S') => self.save_to_file(),
             _ => {}
         }
         Ok(())
+    }
+
+    fn save_to_file(&self) {
+        let selected_response = &self.responses[self.list.selected_index()];
+
+        std::fs::write("response.http", selected_response.to_string()).unwrap()
+    }
+
+    fn save_body_to_file(&self) {
+        let selected_response = &self.responses[self.list.selected_index()];
+
+        std::fs::write("response.http", selected_response.body()).unwrap()
     }
 
     pub fn draw(&self, f: &mut crate::terminal::Frame<'_>) {

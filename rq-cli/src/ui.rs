@@ -159,6 +159,16 @@ impl ResponseComponent {
                 .content_length(content_length as u16),
         )
     }
+
+    pub fn body(&self) -> String {
+        match self.response.as_ref() {
+            Some(response) => match response {
+                Ok(response) => response.body.clone(),
+                Err(e) => format!("error: {e}"),
+            },
+            None => "Request not sent".into(),
+        }
+    }
 }
 
 impl Display for ResponseComponent {

@@ -90,16 +90,17 @@ impl App {
                     self.responses[self.list.selected_index()].scroll_up()
                 }
             },
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {
-                self.focus = match self.focus {
-                    FocusState::RequestsList => FocusState::ResponseBuffer,
-                    FocusState::ResponseBuffer => FocusState::RequestsList,
+            KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {}
+            KeyCode::Enter => match self.focus {
+                FocusState::RequestsList => self.focus = FocusState::ResponseBuffer,
+                FocusState::ResponseBuffer => {
+                    self.req_tx
+                        .send((self.list.selected().clone(), self.list.selected_index()))
+                        .await?
                 }
-            }
-            KeyCode::Enter => {
-                self.req_tx
-                    .send((self.list.selected().clone(), self.list.selected_index()))
-                    .await?;
+            },
+            KeyCode::Esc if matches!(self.focus, FocusState::ResponseBuffer) => {
+                self.focus = FocusState::RequestsList
             }
             KeyCode::Char('s') => self.save_body_to_file(),
             KeyCode::Char('S') => self.save_to_file(),

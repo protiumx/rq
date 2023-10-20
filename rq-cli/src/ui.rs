@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 use ratatui::{
     prelude::Rect,
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, ListState, Paragraph, Scrollbar, ScrollbarState, Wrap},
+    widgets::{Block, Borders, ListState, Paragraph, Scrollbar, ScrollbarState, Widget, Wrap},
 };
 use rq_core::request::{RequestResult, StatusCode};
 
@@ -192,5 +192,37 @@ impl Display for ResponseComponent {
             },
             None => write!(f, "Request not sent"),
         }
+    }
+}
+
+pub struct Legend {
+    keymaps: Vec<(String, String)>,
+}
+
+impl From<Vec<(String, String)>> for Legend {
+    fn from(value: Vec<(String, String)>) -> Self {
+        Legend { keymaps: value }
+    }
+}
+
+impl Widget for Legend {
+    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+        let spans = self
+            .keymaps
+            .iter()
+            .flat_map(|(k, v)| {
+                [
+                    Span::styled(
+                        format!(" {k} "),
+                        Style::default().add_modifier(Modifier::REVERSED),
+                    ),
+                    format!(" {v} ").into(),
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        let line = Line::from(spans);
+
+        buf.set_line(area.x, area.y, &line, area.width);
     }
 }

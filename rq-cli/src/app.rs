@@ -14,7 +14,23 @@ use std::error::Error;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-use crate::ui::{ResponseComponent, StatefulList};
+use crate::ui::{Legend, ResponseComponent, StatefulList};
+
+const REQUESTS_LIST_KEYMAPS: &[(&str, &str); 4] = &[
+    ("q", "Quit"),
+    ("j/↓", "Next request"),
+    ("k/↑", "Prev request"),
+    ("Enter", "Select request"),
+];
+const RESPONSE_BUFFER_KEYMAPS: &[(&str, &str); 7] = &[
+    ("q", "Quit"),
+    ("Esc", "Back to list"),
+    ("j/↓", "Scroll down"),
+    ("k/↑", "Scroll up"),
+    ("Enter", "Send request"),
+    ("s", "Save the body to file"),
+    ("S", "Save entire request to file"),
+];
 
 #[derive(Default)]
 enum FocusState {
@@ -122,11 +138,21 @@ impl App {
     }
 
     pub fn draw(&self, f: &mut crate::terminal::Frame<'_>) {
+        // Creates a bottom chunk for the legend
+        let [main_chunk, legend_chunk] = {
+            let x = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(1), Constraint::Length(1)])
+                .split(f.size());
+
+            [x[0], x[1]]
+        };
+
         // Create two chunks with equal screen space
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-            .split(f.size());
+            .split(main_chunk);
 
         let (list_border_style, buffer_border_style) = match self.focus {
             FocusState::RequestsList => (Style::default().fg(Color::Blue), Style::default()),
@@ -153,9 +179,19 @@ impl App {
             )
             .highlight_symbol("> ");
 
+        let legend = Legend::from(
+            match self.focus {
+                FocusState::RequestsList => REQUESTS_LIST_KEYMAPS.iter(),
+                FocusState::ResponseBuffer => RESPONSE_BUFFER_KEYMAPS.iter(),
+            }
+            .map(|(a, b)| (a.to_owned().into(), b.to_owned().into()))
+            .collect::<Vec<(String, String)>>(),
+        );
+
         let response = &self.responses[self.list.selected_index()];
 
         f.render_stateful_widget(list.block(list_block), chunks[0], &mut self.list.state());
+        f.render_widget(legend, legend_chunk);
         response.render(f, chunks[1], buffer_border_style);
     }
 

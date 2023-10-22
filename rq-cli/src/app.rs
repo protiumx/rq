@@ -1,16 +1,15 @@
+use anyhow::anyhow;
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 use rq_core::{
     parser::{HttpFile, HttpRequest},
-    request::RequestResult,
+    request::Response,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-
-use std::error::Error;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
@@ -31,6 +30,7 @@ const RESPONSE_BUFFER_KEYMAPS: &[(&str, &str); 7] = &[
     ("s", "Save the body to file"),
     ("S", "Save entire request to file"),
 ];
+const POPUP_KEYMAPS: &[(&str, &str); 1] = &[("Any", "Dismiss")];
 
 #[derive(Default)]
 enum FocusState {
@@ -40,7 +40,7 @@ enum FocusState {
 }
 
 pub struct App {
-    res_rx: Receiver<(RequestResult, usize)>,
+    res_rx: Receiver<(anyhow::Result<Response>, usize)>,
     req_tx: Sender<(HttpRequest, usize)>,
 
     responses: Vec<ResponseComponent>,
@@ -48,15 +48,18 @@ pub struct App {
     should_exit: bool,
     file_path: String,
     focus: FocusState,
+    error: Option<String>,
 }
 
 fn handle_requests(
     mut req_rx: Receiver<(HttpRequest, usize)>,
-    res_tx: Sender<(RequestResult, usize)>,
+    res_tx: Sender<(anyhow::Result<Response>, usize)>,
 ) {
     tokio::spawn(async move {
         while let Some((req, i)) = req_rx.recv().await {
-            let data = rq_core::request::execute(&req).await;
+            let data = rq_core::request::execute(&req)
+                .await
+                .map_err(|e| anyhow!(e));
             res_tx.send((data, i)).await.unwrap();
         }
     });
@@ -65,7 +68,7 @@ fn handle_requests(
 impl App {
     pub fn new(file_path: String, http_file: HttpFile) -> Self {
         let (req_tx, req_rx) = channel::<(HttpRequest, usize)>(1);
-        let (res_tx, res_rx) = channel::<(RequestResult, usize)>(1);
+        let (res_tx, res_rx) = channel::<(anyhow::Result<Response>, usize)>(1);
 
         handle_requests(req_rx, res_tx);
 
@@ -81,10 +84,17 @@ impl App {
             responses,
             should_exit: false,
             focus: FocusState::default(),
+            error: None,
         }
     }
 
-    async fn on_key_event(&mut self, event: KeyEvent) -> Result<(), Box<dyn Error>> {
+    async fn on_key_event(&mut self, event: KeyEvent) -> anyhow::Result<()> {
+        // Dismiss error
+        if self.error.is_some() {
+            self.error = None;
+            return Ok(());
+        }
+
         match event.code {
             KeyCode::Char('q') | KeyCode::Char('Q') => {
                 self.should_exit = true;
@@ -118,23 +128,35 @@ impl App {
             KeyCode::Esc if matches!(self.focus, FocusState::ResponseBuffer) => {
                 self.focus = FocusState::RequestsList
             }
-            KeyCode::Char('s') => self.save_body_to_file(),
-            KeyCode::Char('S') => self.save_to_file(),
+            KeyCode::Char('s') => {
+                if let Err(e) = self.save_body_to_file() {
+                    self.error = Some(e.to_string());
+                }
+            }
+            KeyCode::Char('S') => {
+                if let Err(e) = self.save_to_file() {
+                    self.error = Some(e.to_string());
+                }
+            }
             _ => {}
         }
         Ok(())
     }
 
-    fn save_to_file(&self) {
+    fn save_to_file(&self) -> anyhow::Result<()> {
         let selected_response = &self.responses[self.list.selected_index()];
 
-        std::fs::write("response.http", selected_response.to_string()).unwrap()
+        std::fs::write("response.http", selected_response.to_string()?)?;
+
+        Ok(())
     }
 
-    fn save_body_to_file(&self) {
+    fn save_body_to_file(&mut self) -> anyhow::Result<()> {
         let selected_response = &self.responses[self.list.selected_index()];
 
-        std::fs::write("response.http", selected_response.body()).unwrap()
+        std::fs::write("response.http", selected_response.body()?)?;
+
+        Ok(())
     }
 
     pub fn draw(&self, f: &mut crate::terminal::Frame<'_>) {
@@ -155,6 +177,7 @@ impl App {
             .split(main_chunk);
 
         let (list_border_style, buffer_border_style) = match self.focus {
+            _ if self.error.is_some() => (Style::default(), Style::default()),
             FocusState::RequestsList => (Style::default().fg(Color::Blue), Style::default()),
             FocusState::ResponseBuffer => (Style::default(), Style::default().fg(Color::Blue)),
         };
@@ -191,8 +214,54 @@ impl App {
         let response = &self.responses[self.list.selected_index()];
 
         f.render_stateful_widget(list.block(list_block), chunks[0], &mut self.list.state());
-        f.render_widget(legend, legend_chunk);
+        if self.error.is_none() {
+            f.render_widget(legend, legend_chunk);
+        }
         response.render(f, chunks[1], buffer_border_style);
+
+        if let Some(content) = self.error.as_ref() {
+            let popup_chunk = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Percentage(30),
+                    Constraint::Percentage(40),
+                    Constraint::Percentage(30),
+                ])
+                .split(f.size())[1];
+
+            let [popup_chunk, legend_chunk] = {
+                let x = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Percentage(37),
+                        Constraint::Percentage(25),
+                        Constraint::Length(1),
+                        Constraint::Min(1),
+                    ])
+                    .split(popup_chunk);
+
+                [x[1], x[2]]
+            };
+
+            let p = Paragraph::new(content.clone())
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_style(Style::default().fg(Color::Red))
+                        .title(" error "),
+                )
+                .wrap(Wrap::default());
+            let legend = Legend::from(
+                POPUP_KEYMAPS
+                    .iter()
+                    .map(|(a, b)| (a.to_owned().into(), b.to_owned().into()))
+                    .collect::<Vec<_>>(),
+            );
+
+            f.render_widget(Clear, popup_chunk);
+            f.render_widget(p, popup_chunk);
+            f.render_widget(legend, legend_chunk);
+        }
     }
 
     pub fn update(&mut self) {
@@ -206,7 +275,7 @@ impl App {
         self.should_exit
     }
 
-    pub async fn on_event(&mut self, e: crossterm::event::Event) -> Result<(), Box<dyn Error>> {
+    pub async fn on_event(&mut self, e: crossterm::event::Event) -> anyhow::Result<()> {
         if let Event::Key(e) = e {
             self.on_key_event(e).await?;
         }

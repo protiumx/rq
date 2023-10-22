@@ -3,7 +3,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{error::Error, time::Duration};
+use std::time::Duration;
 
 use crate::app::App;
 
@@ -21,7 +21,7 @@ fn shutdown() -> std::io::Result<()> {
     Ok(())
 }
 
-async fn main_loop(app: &mut App) -> Result<(), Box<dyn Error>> {
+async fn main_loop(app: &mut App) -> anyhow::Result<()> {
     let mut t = Terminal::new(CrosstermBackend::new(std::io::stderr()))?;
 
     loop {
@@ -43,7 +43,7 @@ async fn main_loop(app: &mut App) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn run(mut app: App) -> Result<(), Box<dyn Error>> {
+pub async fn run(mut app: App) -> anyhow::Result<()> {
     startup()?;
     let res = main_loop(&mut app).await;
     shutdown()?;

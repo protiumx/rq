@@ -54,7 +54,7 @@ impl Response {
     }
 }
 
-pub type RequestResult = Result<Response, Box<dyn std::error::Error + Send + Sync>>;
+type RequestResult = Result<Response, Box<dyn std::error::Error + Send + Sync>>;
 
 pub async fn execute(req: &HttpRequest) -> RequestResult {
     let request =

@@ -1,12 +1,11 @@
-use std::fmt::Display;
-
+use anyhow::anyhow;
 use ratatui::{
     prelude::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, ListState, Paragraph, Scrollbar, ScrollbarState, Widget, Wrap},
 };
-use rq_core::request::{RequestResult, StatusCode};
+use rq_core::request::{Response, StatusCode};
 
 use crate::terminal::Frame;
 
@@ -60,7 +59,7 @@ impl<T> StatefulList<T> {
 
 #[derive(Default)]
 pub struct ResponseComponent {
-    response: Option<RequestResult>,
+    response: Option<Result<Response, String>>,
     scroll: u16,
 }
 
@@ -77,9 +76,9 @@ fn status_code_color(status_code: StatusCode) -> Color {
 }
 
 impl ResponseComponent {
-    pub fn new(response: RequestResult) -> Self {
+    pub fn new(response: anyhow::Result<Response>) -> Self {
         ResponseComponent {
-            response: Some(response),
+            response: Some(response.map_err(|e| e.to_string())),
             scroll: 0,
         }
     }
@@ -160,37 +159,34 @@ impl ResponseComponent {
         )
     }
 
-    pub fn body(&self) -> String {
+    pub fn body(&self) -> anyhow::Result<String> {
         match self.response.as_ref() {
-            Some(response) => match response {
-                Ok(response) => response.body.clone(),
-                Err(e) => format!("error: {e}"),
-            },
-            None => "Request not sent".into(),
+            Some(response) => response
+                .as_ref()
+                .map(|response| response.body.clone())
+                .map_err(|e| anyhow!(e.clone())),
+            None => Err(anyhow!("Request not sent yet")),
         }
     }
-}
 
-impl Display for ResponseComponent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn to_string(&self) -> anyhow::Result<String> {
         match self.response.as_ref() {
-            Some(response) => match response.as_ref() {
-                Ok(response) => {
+            Some(response) => response
+                .as_ref()
+                .map(|response| {
                     let headers = response
                         .headers
                         .iter()
                         .map(|(k, v)| format!("{k}: {}\n", v.to_str().unwrap()))
                         .collect::<String>();
 
-                    write!(
-                        f,
+                    format!(
                         "{} {}\n{headers}\n\n{}",
                         response.version, response.status, response.body
                     )
-                }
-                Err(e) => write!(f, "error: {e}"),
-            },
-            None => write!(f, "Request not sent"),
+                })
+                .map_err(|e| anyhow!(e.clone())),
+            None => Err(anyhow!("Request not sent")),
         }
     }
 }

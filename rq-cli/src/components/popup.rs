@@ -1,3 +1,9 @@
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
+
+use lazy_static::lazy_static;
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Style},
@@ -8,32 +14,28 @@ use crate::ui::Legend;
 
 use super::{BlockComponent, HandleResult, HandleSuccess};
 
+lazy_static! {
+    static ref MESSAGES: Arc<Mutex<VecDeque<Message>>> = Arc::new(Mutex::new(VecDeque::new()));
+}
+
 const POPUP_KEYMAPS: &[(&str, &str); 1] = &[("Any", "Dismiss")];
 
 #[derive(Clone)]
-pub enum PopupContent {
+pub enum Message {
     Info(String),
     Error(String),
 }
 
 #[derive(Clone)]
 pub struct Popup {
-    content: Option<PopupContent>,
+    content: Option<Message>,
     w_percent: u16,
     h_percent: u16,
 }
 
 impl Popup {
-    pub fn set(&mut self, content: PopupContent) {
-        self.content = Some(content);
-    }
-
-    pub fn new(content: Option<PopupContent>, w_percent: u16, h_percent: u16) -> Self {
-        Self {
-            content,
-            w_percent,
-            h_percent,
-        }
+    pub fn push_message(content: Message) {
+        MESSAGES.as_ref().lock().unwrap().push_back(content);
     }
 }
 
@@ -58,7 +60,13 @@ impl BlockComponent for Popup {
         }
     }
 
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        if self.content.is_some() {
+            return;
+        }
+
+        self.content = MESSAGES.as_ref().lock().unwrap().pop_front();
+    }
 
     fn render(
         &self,
@@ -97,8 +105,8 @@ impl BlockComponent for Popup {
                 return;
             }
             Some(content) => match content {
-                PopupContent::Info(content) => (content.as_str(), " info ", Color::Green),
-                PopupContent::Error(content) => (content.as_str(), " error ", Color::Red),
+                Message::Info(content) => (content.as_str(), " info ", Color::Green),
+                Message::Error(content) => (content.as_str(), " error ", Color::Red),
             },
         };
 

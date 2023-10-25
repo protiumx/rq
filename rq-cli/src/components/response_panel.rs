@@ -3,12 +3,12 @@ use crossterm::event::KeyCode;
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap},
+    widgets::{Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
 use rq_core::request::{Response, StatusCode};
 
 use super::{
-    popup::{Popup, PopupContent},
+    popup::{Message, Popup},
     BlockComponent, HandleResult, HandleSuccess,
 };
 
@@ -24,7 +24,6 @@ enum Content {
 pub struct ResponsePanel {
     content: Content,
     scroll: u16,
-    popup: Popup,
 }
 
 impl From<anyhow::Result<Response>> for ResponsePanel {
@@ -34,11 +33,7 @@ impl From<anyhow::Result<Response>> for ResponsePanel {
             Err(e) => Content::Error(e.to_string()),
         };
 
-        Self {
-            content,
-            scroll: 0,
-            popup: Popup::new(None, 75, 25),
-        }
+        Self { content, scroll: 0 }
     }
 }
 
@@ -55,8 +50,7 @@ impl ResponsePanel {
         let path = "response.http";
         std::fs::write(path, self.to_string()?)?;
 
-        self.popup
-            .set(PopupContent::Info(format!("Response saved to {}", path)));
+        Popup::push_message(Message::Info(format!("Response saved to {}", path)));
 
         Ok(())
     }
@@ -65,8 +59,7 @@ impl ResponsePanel {
         let path = "response.http";
         std::fs::write(path, self.body()?)?;
 
-        self.popup
-            .set(PopupContent::Info(format!("Response saved to {}", path)));
+        Popup::push_message(Message::Info(format!("Response saved to {}", path)));
 
         Ok(())
     }
@@ -103,11 +96,6 @@ impl ResponsePanel {
 
 impl BlockComponent for ResponsePanel {
     fn on_event(&mut self, key_event: crossterm::event::KeyEvent) -> HandleResult {
-        match self.popup.on_event(key_event)? {
-            HandleSuccess::Consumed => return Ok(HandleSuccess::Consumed),
-            HandleSuccess::Ignored => (),
-        }
-
         match key_event.code {
             KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
@@ -184,9 +172,6 @@ impl BlockComponent for ResponsePanel {
                 .position(self.scroll)
                 .content_length(content_length as u16),
         );
-
-        self.popup
-            .render(frame, area, Block::default().borders(Borders::ALL));
     }
 }
 

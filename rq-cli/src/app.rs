@@ -14,7 +14,7 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     components::{
-        popup::{Popup, PopupContent},
+        popup::{Message, Popup},
         request_list::RequestList,
         response_panel::ResponsePanel,
         BlockComponent, HandleSuccess,
@@ -142,7 +142,7 @@ impl App {
         };
 
         if let Err(e) = event_result {
-            self.popup.set(PopupContent::Error(e.to_string()));
+            Popup::push_message(Message::Error(e.to_string()));
         }
 
         Ok(())
@@ -205,6 +205,8 @@ impl App {
         if let Ok((res, i)) = self.res_rx.try_recv() {
             self.responses[i] = ResponsePanel::from(res);
         }
+
+        self.popup.update();
     }
 
     pub fn should_exit(&self) -> bool {

@@ -28,6 +28,7 @@ fn new_client() -> Client {
         .unwrap()
 }
 
+#[derive(Clone)]
 pub struct Response {
     pub status: StatusCode,
     pub headers: HeaderMap,

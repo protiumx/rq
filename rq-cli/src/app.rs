@@ -1,9 +1,8 @@
 use anyhow::anyhow;
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    style::{Color, Style},
+    widgets::{Block, Borders},
 };
 use rq_core::{
     parser::{HttpFile, HttpRequest},
@@ -13,7 +12,15 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-use crate::ui::{Legend, ResponseComponent, StatefulList};
+use crate::{
+    components::{
+        popup::{Popup, PopupContent},
+        request_list::RequestList,
+        response_panel::ResponsePanel,
+        BlockComponent, HandleSuccess,
+    },
+    ui::Legend,
+};
 
 const REQUESTS_LIST_KEYMAPS: &[(&str, &str); 4] = &[
     ("q", "Quit"),
@@ -30,7 +37,6 @@ const RESPONSE_BUFFER_KEYMAPS: &[(&str, &str); 7] = &[
     ("s", "Save the body to file"),
     ("S", "Save entire request to file"),
 ];
-const POPUP_KEYMAPS: &[(&str, &str); 1] = &[("Any", "Dismiss")];
 
 #[derive(Default)]
 enum FocusState {
@@ -43,12 +49,12 @@ pub struct App {
     res_rx: Receiver<(anyhow::Result<Response>, usize)>,
     req_tx: Sender<(HttpRequest, usize)>,
 
-    responses: Vec<ResponseComponent>,
-    list: StatefulList<HttpRequest>,
+    request_list: RequestList,
+    responses: Vec<ResponsePanel>,
     should_exit: bool,
     file_path: String,
     focus: FocusState,
-    error: Option<String>,
+    popup: Popup,
 }
 
 fn handle_requests(
@@ -72,7 +78,7 @@ impl App {
 
         handle_requests(req_rx, res_tx);
 
-        let responses = std::iter::repeat_with(ResponseComponent::default)
+        let responses = std::iter::repeat(ResponsePanel::default())
             .take(http_file.requests.len())
             .collect();
 
@@ -80,81 +86,64 @@ impl App {
             file_path,
             res_rx,
             req_tx,
-            list: StatefulList::with_items(http_file.requests),
+            request_list: RequestList::from(http_file.requests),
             responses,
             should_exit: false,
             focus: FocusState::default(),
-            error: None,
+            popup: Popup::default(),
         }
     }
 
     async fn on_key_event(&mut self, event: KeyEvent) -> anyhow::Result<()> {
-        // Dismiss error
-        if self.error.is_some() {
-            self.error = None;
-            return Ok(());
-        }
+        match self.popup.on_event(event)? {
+            HandleSuccess::Consumed => return Ok(()),
+            HandleSuccess::Ignored => (),
+        };
 
+        // Consume event if App has the keymaps
         match event.code {
             KeyCode::Char('q') | KeyCode::Char('Q') => {
                 self.should_exit = true;
+                return Ok(());
             }
             KeyCode::Char('c') => {
                 if event.modifiers == KeyModifiers::CONTROL {
                     self.should_exit = true;
                 }
+                return Ok(());
             }
-            KeyCode::Down | KeyCode::Char('j') => match self.focus {
-                FocusState::RequestsList => self.list.next(),
-                FocusState::ResponseBuffer => {
-                    self.responses[self.list.selected_index()].scroll_down()
-                }
-            },
-            KeyCode::Up | KeyCode::Char('k') => match self.focus {
-                FocusState::RequestsList => self.list.previous(),
-                FocusState::ResponseBuffer => {
-                    self.responses[self.list.selected_index()].scroll_up()
-                }
-            },
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {}
-            KeyCode::Enter => match self.focus {
-                FocusState::RequestsList => self.focus = FocusState::ResponseBuffer,
-                FocusState::ResponseBuffer => {
-                    self.req_tx
-                        .send((self.list.selected().clone(), self.list.selected_index()))
-                        .await?
-                }
-            },
             KeyCode::Esc if matches!(self.focus, FocusState::ResponseBuffer) => {
-                self.focus = FocusState::RequestsList
+                self.focus = FocusState::RequestsList;
+                return Ok(());
             }
-            KeyCode::Char('s') => {
-                if let Err(e) = self.save_body_to_file() {
-                    self.error = Some(e.to_string());
+            KeyCode::Enter => {
+                match self.focus {
+                    FocusState::RequestsList => self.focus = FocusState::ResponseBuffer,
+                    FocusState::ResponseBuffer => {
+                        self.req_tx
+                            .send((
+                                self.request_list.selected().clone(),
+                                self.request_list.selected_index(),
+                            ))
+                            .await?
+                    }
                 }
+                return Ok(());
             }
-            KeyCode::Char('S') => {
-                if let Err(e) = self.save_to_file() {
-                    self.error = Some(e.to_string());
-                }
+            _ => (),
+        };
+
+        // Propagate event to siblings
+        let event_result = match self.focus {
+            FocusState::RequestsList => self.request_list.on_event(event),
+            FocusState::ResponseBuffer => {
+                self.responses[self.request_list.selected_index()].on_event(event)
             }
-            _ => {}
+        };
+
+        if let Err(e) = event_result {
+            self.popup.set(PopupContent::Error(e.to_string()));
         }
-        Ok(())
-    }
-
-    fn save_to_file(&self) -> anyhow::Result<()> {
-        let selected_response = &self.responses[self.list.selected_index()];
-
-        std::fs::write("response.http", selected_response.to_string()?)?;
-
-        Ok(())
-    }
-
-    fn save_body_to_file(&mut self) -> anyhow::Result<()> {
-        let selected_response = &self.responses[self.list.selected_index()];
-
-        std::fs::write("response.http", selected_response.body()?)?;
 
         Ok(())
     }
@@ -171,13 +160,16 @@ impl App {
         };
 
         // Create two chunks with equal screen space
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-            .split(main_chunk);
+        let [list_chunk, response_chunk] = {
+            let x = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(main_chunk);
 
-        let (list_border_style, buffer_border_style) = match self.focus {
-            _ if self.error.is_some() => (Style::default(), Style::default()),
+            [x[0], x[1]]
+        };
+
+        let (list_border_style, response_border_style) = match self.focus {
             FocusState::RequestsList => (Style::default().fg(Color::Blue), Style::default()),
             FocusState::ResponseBuffer => (Style::default(), Style::default().fg(Color::Blue)),
         };
@@ -186,21 +178,13 @@ impl App {
             .borders(Borders::ALL)
             .title(format!(">> {} <<", self.file_path.as_str()))
             .border_style(list_border_style);
+        self.request_list.render(f, list_chunk, list_block);
 
-        let request_spans: Vec<ListItem> = self
-            .list
-            .items()
-            .iter()
-            .map(|i| ListItem::new(draw_request(i)))
-            .collect();
-
-        let list = List::new(request_spans)
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol("> ");
+        let response_block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(response_border_style);
+        let response_panel = &self.responses[self.request_list.selected_index()];
+        response_panel.render(f, response_chunk, response_block);
 
         let legend = Legend::from(
             match self.focus {
@@ -210,64 +194,16 @@ impl App {
             .map(|(a, b)| (a.to_owned().into(), b.to_owned().into()))
             .collect::<Vec<(String, String)>>(),
         );
+        f.render_widget(legend, legend_chunk);
 
-        let response = &self.responses[self.list.selected_index()];
-
-        f.render_stateful_widget(list.block(list_block), chunks[0], &mut self.list.state());
-        if self.error.is_none() {
-            f.render_widget(legend, legend_chunk);
-        }
-        response.render(f, chunks[1], buffer_border_style);
-
-        if let Some(content) = self.error.as_ref() {
-            let popup_chunk = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([
-                    Constraint::Percentage(30),
-                    Constraint::Percentage(40),
-                    Constraint::Percentage(30),
-                ])
-                .split(f.size())[1];
-
-            let [popup_chunk, legend_chunk] = {
-                let x = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Percentage(37),
-                        Constraint::Percentage(25),
-                        Constraint::Length(1),
-                        Constraint::Min(1),
-                    ])
-                    .split(popup_chunk);
-
-                [x[1], x[2]]
-            };
-
-            let p = Paragraph::new(content.clone())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(Color::Red))
-                        .title(" error "),
-                )
-                .wrap(Wrap::default());
-            let legend = Legend::from(
-                POPUP_KEYMAPS
-                    .iter()
-                    .map(|(a, b)| (a.to_owned().into(), b.to_owned().into()))
-                    .collect::<Vec<_>>(),
-            );
-
-            f.render_widget(Clear, popup_chunk);
-            f.render_widget(p, popup_chunk);
-            f.render_widget(legend, legend_chunk);
-        }
+        self.popup
+            .render(f, f.size(), Block::default().borders(Borders::ALL));
     }
 
     pub fn update(&mut self) {
         // Poll for request responses
         if let Ok((res, i)) = self.res_rx.try_recv() {
-            self.responses[i] = ResponseComponent::new(res);
+            self.responses[i] = ResponsePanel::from(res);
         }
     }
 
@@ -281,29 +217,4 @@ impl App {
         }
         Ok(())
     }
-}
-
-fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {
-    let mut lines = vec![Line::from(vec![
-        Span::styled(req.method.to_string(), Style::default().fg(Color::Green)),
-        Span::raw(format!(" {} HTTP/{}", req.url, req.version)),
-    ])];
-
-    let headers: Vec<Line> = req
-        .headers()
-        .iter()
-        .map(|(k, v)| Line::from(format!("{}: {}", k, v)))
-        .collect();
-
-    lines.extend(headers);
-    // new line
-    lines.push(Line::from(""));
-    if !req.body.is_empty() {
-        lines.push(Line::styled(
-            req.body.as_str(),
-            Style::default().fg(Color::Rgb(246, 69, 42)),
-        ));
-        lines.push(Line::from(""));
-    }
-    lines
 }

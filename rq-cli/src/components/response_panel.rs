@@ -15,7 +15,6 @@ use super::{
 #[derive(Clone, Default)]
 enum Content {
     Response(Response),
-    Error(String),
     #[default]
     Empty,
 }
@@ -26,14 +25,12 @@ pub struct ResponsePanel {
     scroll: u16,
 }
 
-impl From<anyhow::Result<Response>> for ResponsePanel {
-    fn from(value: anyhow::Result<Response>) -> Self {
-        let content = match value {
-            Ok(response) => Content::Response(response),
-            Err(e) => Content::Error(e.to_string()),
-        };
-
-        Self { content, scroll: 0 }
+impl From<Response> for ResponsePanel {
+    fn from(value: Response) -> Self {
+        Self {
+            content: Content::Response(value),
+            scroll: 0,
+        }
     }
 }
 
@@ -67,7 +64,6 @@ impl ResponsePanel {
     fn body(&self) -> anyhow::Result<String> {
         match &self.content {
             Content::Response(response) => Ok(response.body.clone()),
-            Content::Error(e) => Err(anyhow!(e.clone())),
             Content::Empty => Err(anyhow!("Request not sent")),
         }
     }
@@ -88,7 +84,6 @@ impl ResponsePanel {
 
                 Ok(s)
             }
-            Content::Error(e) => Err(anyhow!(e.clone())),
             Content::Empty => Err(anyhow!("Request not sent")),
         }
     }
@@ -149,20 +144,15 @@ impl BlockComponent for ResponsePanel {
 
                 lines
             }
-            Content::Error(e) => vec![Line::styled(e.to_string(), Style::default().fg(Color::Red))],
             Content::Empty => vec![Line::styled("<Empty>", Style::default().fg(Color::Yellow))],
         };
 
         let content_length = content.len();
-        let title = match &self.content {
-            Content::Error(_) => " error ",
-            _ => "",
-        };
 
         let component = Paragraph::new(content)
             .wrap(Wrap { trim: true })
             .scroll((self.scroll, 0))
-            .block(block.title(title));
+            .block(block);
 
         frame.render_widget(component, area);
         frame.render_stateful_widget(

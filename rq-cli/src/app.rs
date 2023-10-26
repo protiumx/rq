@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Style},
@@ -46,7 +45,7 @@ enum FocusState {
 }
 
 pub struct App {
-    res_rx: Receiver<(anyhow::Result<Response>, usize)>,
+    res_rx: Receiver<(Response, usize)>,
     req_tx: Sender<(HttpRequest, usize)>,
 
     request_list: RequestList,
@@ -57,15 +56,16 @@ pub struct App {
     popup: Popup,
 }
 
-fn handle_requests(
-    mut req_rx: Receiver<(HttpRequest, usize)>,
-    res_tx: Sender<(anyhow::Result<Response>, usize)>,
-) {
+fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(Response, usize)>) {
     tokio::spawn(async move {
         while let Some((req, i)) = req_rx.recv().await {
-            let data = rq_core::request::execute(&req)
-                .await
-                .map_err(|e| anyhow!(e));
+            let data = match rq_core::request::execute(&req).await {
+                Ok(data) => data,
+                Err(e) => {
+                    Popup::push_message(Message::Error(e.to_string()));
+                    return;
+                }
+            };
             res_tx.send((data, i)).await.unwrap();
         }
     });
@@ -74,7 +74,7 @@ fn handle_requests(
 impl App {
     pub fn new(file_path: String, http_file: HttpFile) -> Self {
         let (req_tx, req_rx) = channel::<(HttpRequest, usize)>(1);
-        let (res_tx, res_rx) = channel::<(anyhow::Result<Response>, usize)>(1);
+        let (res_tx, res_rx) = channel::<(Response, usize)>(1);
 
         handle_requests(req_rx, res_tx);
 

@@ -1,17 +1,17 @@
-name: rq-core
+name: rq-cli
 on:
   pull_request:
     paths:
-      - .github/workflows/rq-core.yml
-      - rq-core/**/*.rs
-      - rq-core/**/Cargo.toml
+      - .github/workflows/rq-cli.yml
+      - rq-cli/**/*.rs
+      - rq-cli/**/Cargo.toml
       - '!**/*.http'
-    
+
   push:
     paths:
-      - .github/workflows/rq-core.yml
-      - rq-core/**/*.rs
-      - rq-core/**/Cargo.toml
+      - .github/workflows/rq-cli.yml
+      - rq-cli/**/*.rs
+      - rq-cli/**/Cargo.toml
       - '!**/*.http'
     branches:
       - main
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: "rq-core"
+        working-directory: "rq-cli"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

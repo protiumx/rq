@@ -1,5 +1,5 @@
 # rq
-[![rq-core](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml/badge.svg)](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml)
+[![rq-core](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml/badge.svg)](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml) [![rq-cli](https://github.com/TheRealLorenz/rq/actions/workflows/rq-cli.yml/badge.svg)](https://github.com/TheRealLorenz/rq/actions/workflows/rq-cli.yml)
 
 ![preview](./preview.gif)
 

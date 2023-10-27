@@ -21,7 +21,7 @@ impl<T> StatefulList<T> {
 
     pub fn previous(&mut self) {
         let i = match self.state.selected() {
-            Some(i) if i == 0 => self.items.len() - 1,
+            Some(0) => self.items.len() - 1,
             Some(i) => i - 1,
             None => 0,
         };

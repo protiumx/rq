@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
 use rq_core::request::{Response, StatusCode};
+use std::fmt::Write;
 
 use super::{
     popup::{Message, Popup},
@@ -74,8 +75,10 @@ impl ResponsePanel {
                 let headers = response
                     .headers
                     .iter()
-                    .map(|(k, v)| format!("{k}: {}\n", v.to_str().unwrap()))
-                    .collect::<String>();
+                    .fold(String::new(), |mut acc, (k, v)| {
+                        writeln!(acc, "{k}: {}", v.to_str().unwrap()).unwrap();
+                        acc
+                    });
 
                 let s = format!(
                     "{} {}\n{headers}\n\n{}",

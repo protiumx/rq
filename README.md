@@ -1,5 +1,5 @@
 # rq
-[![rq-core](https://github.com/protiumx/rq/actions/workflows/rq-core.yml/badge.svg)](https://github.com/protiumx/rq/actions/workflows/rq-core.yml)
+[![rq-core](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml/badge.svg)](https://github.com/TheRealLorenz/rq/actions/workflows/rq-core.yml)
 
 ![preview](./preview.gif)
 
@@ -7,10 +7,9 @@
 alternative to [vscode-restclient](https://github.com/Huachao/vscode-restclient).
 `rq` follows the standard [RFC 2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html).
 
-Blogpost: https://protiumx.github.io/blog/posts/an-http-request-parser-with-rust-and-pest-rs/
+Original author blogpost: https://protiumx.github.io/blog/posts/an-http-request-parser-with-rust-and-pest-rs/
 
-This project was born out of my boredom and curiosity about [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar).
-I'm wishing it will with help of the open source community.
+This project is based on [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar).
 
 ## Dependencies
 
@@ -55,13 +54,3 @@ matches.
 A `request_line` is conformed by: `{ method, target, version }`.
 A `headers` is a collection of `header` `{ header_name, header_value }`
 A `body` is anything that doesn't match headers and has a preceding line break, as specified in the RFC.
-
-## Contributing
-
-PRs are always welcomed. Refer to the [project TODO list](https://github.com/protiumx/rq/projects) for ideas!
-
-## Sponsorship
-
-If you find this project useful you can support my work with:
-
-<a href="https://www.buymeacoffee.com/p3kqm9Z2h" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-red.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>

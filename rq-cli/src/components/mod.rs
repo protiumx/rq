@@ -15,13 +15,17 @@ pub enum HandleSuccess {
 pub type HandleResult = anyhow::Result<HandleSuccess>;
 
 pub trait Component {
-    fn on_event(&mut self, key_event: KeyEvent) -> HandleResult;
-    fn update(&mut self);
+    fn on_event(&mut self, _key_event: KeyEvent) -> HandleResult {
+        Ok(HandleSuccess::Ignored)
+    }
+    fn update(&mut self) {}
     fn render(&self, frame: &mut Frame, area: Rect);
 }
 
 pub trait BlockComponent {
-    fn on_event(&mut self, key_event: KeyEvent) -> HandleResult;
-    fn update(&mut self);
+    fn on_event(&mut self, _key_event: KeyEvent) -> HandleResult {
+        Ok(HandleSuccess::Ignored)
+    }
+    fn update(&mut self) {}
     fn render(&self, frame: &mut Frame, area: Rect, block: Block);
 }

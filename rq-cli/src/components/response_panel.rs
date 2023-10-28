@@ -105,8 +105,6 @@ impl BlockComponent for ResponsePanel {
         Ok(HandleSuccess::Consumed)
     }
 
-    fn update(&mut self) {}
-
     fn render(
         &self,
         frame: &mut crate::terminal::Frame,

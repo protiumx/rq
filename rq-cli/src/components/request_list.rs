@@ -34,8 +34,6 @@ impl BlockComponent for RequestList {
         Ok(HandleSuccess::Consumed)
     }
 
-    fn update(&mut self) {}
-
     fn render(&self, frame: &mut Frame, area: Rect, block: Block) {
         let request_spans: Vec<ListItem> = self
             .list

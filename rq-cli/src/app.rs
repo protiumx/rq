@@ -13,7 +13,8 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::{
     components::{
-        popup::{Message, Popup},
+        message_dialog::{Message, MessageDialog},
+        popup::Popup,
         request_list::RequestList,
         response_panel::ResponsePanel,
         BlockComponent, HandleSuccess,
@@ -53,7 +54,7 @@ pub struct App {
     should_exit: bool,
     file_path: String,
     focus: FocusState,
-    popup: Popup,
+    message_popup: Popup<MessageDialog>,
 }
 
 fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(Response, usize)>) {
@@ -62,7 +63,7 @@ fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(R
             let data = match rq_core::request::execute(&req).await {
                 Ok(data) => data,
                 Err(e) => {
-                    Popup::push_message(Message::Error(e.to_string()));
+                    MessageDialog::push_message(Message::Error(e.to_string()));
                     return;
                 }
             };
@@ -90,12 +91,12 @@ impl App {
             responses,
             should_exit: false,
             focus: FocusState::default(),
-            popup: Popup::default(),
+            message_popup: Popup::new(MessageDialog::default()),
         }
     }
 
     async fn on_key_event(&mut self, event: KeyEvent) -> anyhow::Result<()> {
-        match self.popup.on_event(event)? {
+        match self.message_popup.on_event(event)? {
             HandleSuccess::Consumed => return Ok(()),
             HandleSuccess::Ignored => (),
         };
@@ -142,7 +143,7 @@ impl App {
         };
 
         if let Err(e) = event_result {
-            Popup::push_message(Message::Error(e.to_string()));
+            MessageDialog::push_message(Message::Error(e.to_string()));
         }
 
         Ok(())
@@ -196,7 +197,7 @@ impl App {
         );
         f.render_widget(legend, legend_chunk);
 
-        self.popup
+        self.message_popup
             .render(f, f.size(), Block::default().borders(Borders::ALL));
     }
 
@@ -206,7 +207,7 @@ impl App {
             self.responses[i] = ResponsePanel::from(res);
         }
 
-        self.popup.update();
+        self.message_popup.update();
     }
 
     pub fn should_exit(&self) -> bool {

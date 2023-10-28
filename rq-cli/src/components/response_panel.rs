@@ -9,7 +9,7 @@ use rq_core::request::{Response, StatusCode};
 use std::fmt::Write;
 
 use super::{
-    popup::{Message, Popup},
+    message_dialog::{Message, MessageDialog},
     BlockComponent, HandleResult, HandleSuccess,
 };
 
@@ -48,7 +48,7 @@ impl ResponsePanel {
         let path = "response.http";
         std::fs::write(path, self.to_string()?)?;
 
-        Popup::push_message(Message::Info(format!("Response saved to {}", path)));
+        MessageDialog::push_message(Message::Info(format!("Response saved to {}", path)));
 
         Ok(())
     }
@@ -57,7 +57,7 @@ impl ResponsePanel {
         let path = "response.http";
         std::fs::write(path, self.body()?)?;
 
-        Popup::push_message(Message::Info(format!("Response saved to {}", path)));
+        MessageDialog::push_message(Message::Info(format!("Response saved to {}", path)));
 
         Ok(())
     }

@@ -1,7 +1,11 @@
-use ratatui::prelude::{Constraint, Direction, Layout, Rect};
+use ratatui::{
+    prelude::{Constraint, Direction, Layout, Rect},
+};
+use std::ops::{Deref, DerefMut};
 
 use super::BlockComponent;
 
+#[derive(Clone)]
 pub struct Popup<T: BlockComponent> {
     component: T,
     w_percent: u16,
@@ -29,6 +33,20 @@ impl<T: BlockComponent> Popup<T> {
             h_percent: height,
             ..self
         }
+    }
+}
+
+impl<T: BlockComponent> Deref for Popup<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.component
+    }
+}
+
+impl<T: BlockComponent> DerefMut for Popup<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.component
     }
 }
 

@@ -3,13 +3,15 @@ use crossterm::event::KeyCode;
 use ratatui::{
     style::{Color, Style},
     text::{Line, Span},
-    widgets::{Paragraph, Scrollbar, ScrollbarState, Wrap},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
 use rq_core::request::{Response, StatusCode};
 use std::fmt::Write;
+use tui_input::Input;
 
 use super::{
     message_dialog::{Message, MessageDialog},
+    popup::Popup,
     BlockComponent, HandleResult, HandleSuccess,
 };
 
@@ -21,9 +23,19 @@ enum Content {
 }
 
 #[derive(Clone, Default)]
+enum SaveMode {
+    #[default]
+    All,
+    Body,
+}
+
+#[derive(Clone, Default)]
 pub struct ResponsePanel {
     content: Content,
     scroll: u16,
+    last_input: Option<String>,
+    input_popup: Option<Popup<Input>>,
+    save_mode: SaveMode,
 }
 
 impl From<Response> for ResponsePanel {
@@ -31,6 +43,9 @@ impl From<Response> for ResponsePanel {
         Self {
             content: Content::Response(value),
             scroll: 0,
+            last_input: None,
+            input_popup: None,
+            save_mode: SaveMode::All,
         }
     }
 }
@@ -44,8 +59,15 @@ impl ResponsePanel {
         self.scroll = self.scroll.saturating_sub(1);
     }
 
+    fn get_last_input(&self) -> Option<&str> {
+        self.last_input
+            .as_ref()
+            .and_then(|s| if s.is_empty() { None } else { Some(s.as_str()) })
+    }
+
     fn save_to_file(&mut self) -> anyhow::Result<()> {
-        let path = "response.http";
+        let path = self.get_last_input().ok_or(anyhow!("Empty filename"))?;
+
         std::fs::write(path, self.to_string()?)?;
 
         MessageDialog::push_message(Message::Info(format!("Response saved to {}", path)));
@@ -54,10 +76,11 @@ impl ResponsePanel {
     }
 
     fn save_body_to_file(&mut self) -> anyhow::Result<()> {
-        let path = "response.http";
+        let path = self.get_last_input().ok_or(anyhow!("Empty filename"))?;
+
         std::fs::write(path, self.body()?)?;
 
-        MessageDialog::push_message(Message::Info(format!("Response saved to {}", path)));
+        MessageDialog::push_message(Message::Info(format!("Response body saved to {}", path)));
 
         Ok(())
     }
@@ -94,11 +117,45 @@ impl ResponsePanel {
 
 impl BlockComponent for ResponsePanel {
     fn on_event(&mut self, key_event: crossterm::event::KeyEvent) -> HandleResult {
+        if let Some(input_popup) = self.input_popup.as_mut() {
+            match input_popup.on_event(key_event)? {
+                HandleSuccess::Consumed => return Ok(HandleSuccess::Consumed),
+                HandleSuccess::Ignored => (),
+            }
+
+            match key_event.code {
+                KeyCode::Enter => {
+                    self.last_input = Some(input_popup.value().into());
+                    self.input_popup = None;
+
+                    match self.save_mode {
+                        SaveMode::All => self.save_to_file()?,
+                        SaveMode::Body => self.save_body_to_file()?,
+                    }
+
+                    return Ok(HandleSuccess::Consumed);
+                }
+                KeyCode::Esc => {
+                    self.last_input = None;
+                    self.input_popup = None;
+
+                    return Ok(HandleSuccess::Consumed);
+                }
+                _ => (),
+            }
+        }
+
         match key_event.code {
             KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
-            KeyCode::Char('s') => self.save_body_to_file()?,
-            KeyCode::Char('S') => self.save_to_file()?,
+            KeyCode::Char('s') => {
+                self.save_mode = SaveMode::Body;
+                self.input_popup = Some(Popup::new(Input::new("".into())));
+            }
+            KeyCode::Char('S') => {
+                self.save_mode = SaveMode::All;
+                self.input_popup = Some(Popup::new(Input::new("".into())));
+            }
             _ => return Ok(HandleSuccess::Ignored),
         };
 
@@ -163,6 +220,16 @@ impl BlockComponent for ResponsePanel {
                 .position(self.scroll)
                 .content_length(content_length as u16),
         );
+
+        if let Some(input_popup) = self.input_popup.as_ref() {
+            input_popup.render(
+                frame,
+                frame.size(),
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" output path "),
+            );
+        }
     }
 }
 

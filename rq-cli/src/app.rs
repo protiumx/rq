@@ -101,39 +101,6 @@ impl App {
             HandleSuccess::Ignored => (),
         };
 
-        // Consume event if App has the keymaps
-        match event.code {
-            KeyCode::Char('q') | KeyCode::Char('Q') => {
-                self.should_exit = true;
-                return Ok(());
-            }
-            KeyCode::Char('c') => {
-                if event.modifiers == KeyModifiers::CONTROL {
-                    self.should_exit = true;
-                }
-                return Ok(());
-            }
-            KeyCode::Esc if matches!(self.focus, FocusState::ResponseBuffer) => {
-                self.focus = FocusState::RequestsList;
-                return Ok(());
-            }
-            KeyCode::Enter => {
-                match self.focus {
-                    FocusState::RequestsList => self.focus = FocusState::ResponseBuffer,
-                    FocusState::ResponseBuffer => {
-                        self.req_tx
-                            .send((
-                                self.request_list.selected().clone(),
-                                self.request_list.selected_index(),
-                            ))
-                            .await?
-                    }
-                }
-                return Ok(());
-            }
-            _ => (),
-        };
-
         // Propagate event to siblings
         let event_result = match self.focus {
             FocusState::RequestsList => self.request_list.on_event(event),
@@ -142,9 +109,42 @@ impl App {
             }
         };
 
-        if let Err(e) = event_result {
-            MessageDialog::push_message(Message::Error(e.to_string()));
-        }
+        match event_result {
+            Ok(HandleSuccess::Consumed) => {
+                return Ok(());
+            }
+            Ok(HandleSuccess::Ignored) => (),
+            Err(e) => {
+                MessageDialog::push_message(Message::Error(e.to_string()));
+                return Ok(());
+            }
+        };
+
+        match event.code {
+            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                self.should_exit = true;
+            }
+            KeyCode::Char('c') => {
+                if event.modifiers == KeyModifiers::CONTROL {
+                    self.should_exit = true;
+                }
+            }
+            KeyCode::Esc if matches!(self.focus, FocusState::ResponseBuffer) => {
+                self.focus = FocusState::RequestsList;
+            }
+            KeyCode::Enter => match self.focus {
+                FocusState::RequestsList => self.focus = FocusState::ResponseBuffer,
+                FocusState::ResponseBuffer => {
+                    self.req_tx
+                        .send((
+                            self.request_list.selected().clone(),
+                            self.request_list.selected_index(),
+                        ))
+                        .await?
+                }
+            },
+            _ => (),
+        };
 
         Ok(())
     }

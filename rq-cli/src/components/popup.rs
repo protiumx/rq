@@ -1,6 +1,4 @@
-use ratatui::{
-    prelude::{Constraint, Direction, Layout, Rect},
-};
+use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 use std::ops::{Deref, DerefMut};
 
 use super::BlockComponent;
@@ -21,14 +19,14 @@ impl<T: BlockComponent> Popup<T> {
         }
     }
 
-    pub fn set_width(self, width: u16) -> Self {
+    pub fn with_width(self, width: u16) -> Self {
         Self {
             w_percent: width,
             ..self
         }
     }
 
-    pub fn set_height(self, height: u16) -> Self {
+    pub fn with_height(self, height: u16) -> Self {
         Self {
             h_percent: height,
             ..self

@@ -18,20 +18,6 @@ impl<T: BlockComponent> Popup<T> {
             h_percent: 25,
         }
     }
-
-    pub fn with_width(self, width: u16) -> Self {
-        Self {
-            w_percent: width,
-            ..self
-        }
-    }
-
-    pub fn with_height(self, height: u16) -> Self {
-        Self {
-            h_percent: height,
-            ..self
-        }
-    }
 }
 
 impl<T: BlockComponent> Deref for Popup<T> {

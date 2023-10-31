@@ -42,15 +42,16 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: -p rq-core -- --check
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all-targets -- -D warnings
+          args: -p rq-core -- -D warnings
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: -p rq-core

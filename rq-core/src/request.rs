@@ -4,11 +4,11 @@ use once_cell::sync::Lazy;
 pub use reqwest::StatusCode;
 use reqwest::{
     header::{self, HeaderMap},
-    Client, Method,
+    Client,
 };
 
 use crate::parser::HttpRequest;
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
     Client::builder()
@@ -48,7 +48,7 @@ impl Response {
 type RequestResult = Result<Response, Box<dyn std::error::Error + Send + Sync>>;
 
 pub async fn execute(req: &HttpRequest) -> RequestResult {
-    let request = CLIENT.request(Method::from_str(req.method.to_string().as_str())?, &req.url);
+    let request = CLIENT.request(req.method.clone(), &req.url);
 
     let headers: header::HeaderMap = (req.headers()).try_into()?;
 

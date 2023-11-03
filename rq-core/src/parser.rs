@@ -2,6 +2,7 @@ use pest::error::Error;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
+use reqwest::Method;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::result::Result;
@@ -9,38 +10,6 @@ use std::result::Result;
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
 struct HttpParser;
-
-#[derive(Debug, Clone, Default)]
-pub enum HttpMethod {
-    #[default]
-    Get,
-    Post,
-    Put,
-    Delete,
-}
-
-impl<'i> From<Pair<'i, Rule>> for HttpMethod {
-    fn from(pair: Pair<'i, Rule>) -> Self {
-        match pair.as_str() {
-            "GET" => Self::Get,
-            "POST" => Self::Post,
-            "PUT" => Self::Put,
-            "DELETE" => Self::Delete,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl Display for HttpMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Get => "GET",
-            Self::Post => "POST",
-            Self::Put => "PUT",
-            Self::Delete => "DELETE",
-        })
-    }
-}
 
 #[derive(Clone, Debug, Default)]
 struct HttpHeaders(HashMap<String, String>);
@@ -76,7 +45,7 @@ impl<'i> From<Pairs<'i, Rule>> for HttpHeaders {
 
 #[derive(Debug, Clone, Default)]
 pub struct HttpRequest {
-    pub method: HttpMethod,
+    pub method: Method,
     pub url: String,
     pub version: String,
     headers: HttpHeaders,
@@ -93,9 +62,9 @@ impl<'i> From<Pair<'i, Rule>> for HttpRequest {
     fn from(request: Pair<'i, Rule>) -> Self {
         let mut pairs = request.into_inner().peekable();
 
-        let method: HttpMethod = pairs
+        let method: Method = pairs
             .next_if(|pair| pair.as_rule() == Rule::method)
-            .map(|pair| pair.into())
+            .map(|pair| pair.as_str().try_into().unwrap())
             .unwrap_or_default();
 
         let url = pairs.next().unwrap().as_str().to_string();
@@ -175,7 +144,7 @@ pub fn parse(input: &str) -> Result<HttpFile, Box<Error<Rule>>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse, HttpFile, HttpMethod};
+    use super::{parse, HttpFile};
 
     fn assert_parses(input: &str) -> HttpFile {
         let parsed = parse(input);
@@ -187,25 +156,6 @@ mod tests {
     fn test_empty_input() {
         let file = assert_parses("");
         assert_eq!(file.to_string(), "No requests found\n");
-    }
-
-    #[test]
-    fn test_http_methods() {
-        const METHODS: [HttpMethod; 4] = [
-            HttpMethod::Get,
-            HttpMethod::Post,
-            HttpMethod::Put,
-            HttpMethod::Delete,
-        ];
-        for method in METHODS {
-            let input = format!("{} test.dev HTTP/1.1\n\n", method);
-            let file = assert_parses(input.as_str());
-            assert_eq!(file.requests.len(), 1);
-            assert_eq!(
-                file.requests[0].to_string(),
-                format!("{} test.dev HTTP/1.1 []", method)
-            );
-        }
     }
 
     #[test]

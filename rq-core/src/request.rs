@@ -2,10 +2,7 @@ extern crate reqwest;
 
 use once_cell::sync::Lazy;
 pub use reqwest::StatusCode;
-use reqwest::{
-    header::{self, HeaderMap},
-    Client,
-};
+use reqwest::{header::HeaderMap, Client};
 
 use crate::parser::HttpRequest;
 use std::time::Duration;
@@ -48,12 +45,12 @@ impl Response {
 type RequestResult = Result<Response, Box<dyn std::error::Error + Send + Sync>>;
 
 pub async fn execute(req: &HttpRequest) -> RequestResult {
-    let request = CLIENT.request(req.method.clone(), &req.url);
+    let request = CLIENT
+        .request(req.method.clone(), &req.url)
+        .headers(req.headers())
+        .body(req.body.clone());
 
-    let headers: header::HeaderMap = (req.headers()).try_into()?;
-
-    let body = req.body.clone();
-    let res = request.headers(headers).body(body).send().await?;
+    let res = request.send().await?;
 
     Ok(Response::from_reqwest(res).await)
 }

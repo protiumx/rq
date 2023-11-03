@@ -73,7 +73,7 @@ fn draw_request(req: &'_ HttpRequest) -> Vec<Line<'_>> {
     let headers: Vec<Line> = req
         .headers()
         .iter()
-        .map(|(k, v)| Line::from(format!("{}: {}", k, v)))
+        .map(|(k, v)| Line::from(format!("{}: {}", k, v.to_str().unwrap())))
         .collect();
 
     lines.extend(headers);

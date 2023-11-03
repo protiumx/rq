@@ -2,6 +2,7 @@ use pest::error::Error;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
+use reqwest::header::HeaderMap;
 use reqwest::Method;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -53,8 +54,8 @@ pub struct HttpRequest {
 }
 
 impl HttpRequest {
-    pub fn headers(&self) -> &HashMap<String, String> {
-        &self.headers.0
+    pub fn headers(&self) -> HeaderMap {
+        (&self.headers.0).try_into().unwrap()
     }
 }
 

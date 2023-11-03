@@ -93,9 +93,16 @@ impl<'i> From<Pair<'i, Rule>> for HttpRequest {
     fn from(request: Pair<'i, Rule>) -> Self {
         let mut pairs = request.into_inner().peekable();
 
-        let method: HttpMethod = pairs.next().unwrap().into();
+        let method: HttpMethod = pairs
+            .next_if(|pair| pair.as_rule() == Rule::method)
+            .map(|pair| pair.into())
+            .unwrap_or_default();
+
         let url = pairs.next().unwrap().as_str().to_string();
-        let version = pairs.next().unwrap().as_str().to_string();
+        let version = pairs
+            .next_if(|pair| pair.as_rule() == Rule::version)
+            .map(|pair| pair.as_str().to_string())
+            .unwrap_or_default();
 
         let headers: HttpHeaders = pairs
             .next_if(|pair| pair.as_rule() == Rule::headers)

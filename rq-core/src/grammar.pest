@@ -7,11 +7,11 @@ request = {
     body?
 }
 
-request_line = _{ method ~ " "+ ~ uri ~ " "+ ~ "HTTP/" ~ version ~ NEWLINE }
+request_line = _{ (method ~ " "+)? ~ uri ~ (" "+ ~ "HTTP/" ~ version)? ~ NEWLINE }
 uri = { (!whitespace ~ ANY)+ }
 method = { ("GET" | "DELETE" | "POST" | "PUT") }
 version = { (ASCII_DIGIT+ ~ ".")* ~ ASCII_DIGIT+ }
-whitespace = _{ " " | "\t" }
+whitespace = _{ " " | "\t" | NEWLINE }
 
 headers = { header+ }
 header = { header_name ~ ":" ~ whitespace ~ header_value ~ NEWLINE }

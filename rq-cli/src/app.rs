@@ -11,32 +11,13 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
-use crate::{
-    components::{
-        message_dialog::{Message, MessageDialog},
-        popup::Popup,
-        request_list::RequestList,
-        response_panel::ResponsePanel,
-        BlockComponent, HandleSuccess,
-    },
-    ui::Legend,
+use crate::components::{
+    message_dialog::{Message, MessageDialog},
+    popup::Popup,
+    request_list::RequestList,
+    response_panel::ResponsePanel,
+    BlockComponent, HandleSuccess,
 };
-
-const REQUESTS_LIST_KEYMAPS: &[(&str, &str); 4] = &[
-    ("q", "Quit"),
-    ("j/↓", "Next request"),
-    ("k/↑", "Prev request"),
-    ("Enter", "Select request"),
-];
-const RESPONSE_BUFFER_KEYMAPS: &[(&str, &str); 7] = &[
-    ("q", "Quit"),
-    ("Esc", "Back to list"),
-    ("j/↓", "Scroll down"),
-    ("k/↑", "Scroll up"),
-    ("Enter", "Send request"),
-    ("s", "Save the body to file"),
-    ("S", "Save entire request to file"),
-];
 
 #[derive(Default)]
 enum FocusState {
@@ -155,22 +136,12 @@ impl App {
     }
 
     pub fn draw(&self, f: &mut crate::terminal::Frame<'_>) {
-        // Creates a bottom chunk for the legend
-        let [main_chunk, legend_chunk] = {
-            let x = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Min(1), Constraint::Length(1)])
-                .split(f.size());
-
-            [x[0], x[1]]
-        };
-
         // Create two chunks with equal screen space
         let [list_chunk, response_chunk] = {
             let x = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(main_chunk);
+                .split(f.size());
 
             [x[0], x[1]]
         };
@@ -191,16 +162,6 @@ impl App {
             .border_style(response_border_style);
         let response_panel = &self.responses[self.request_list.selected_index()];
         response_panel.render(f, response_chunk, response_block);
-
-        let legend = Legend::from(
-            match self.focus {
-                FocusState::RequestsList => REQUESTS_LIST_KEYMAPS.iter(),
-                FocusState::ResponseBuffer => RESPONSE_BUFFER_KEYMAPS.iter(),
-            }
-            .map(|(a, b)| (a.to_owned().into(), b.to_owned().into()))
-            .collect::<Vec<(String, String)>>(),
-        );
-        f.render_widget(legend, legend_chunk);
 
         if let Some(popup) = self.message_popup.as_ref() {
             popup.render(f, f.size(), Block::default().borders(Borders::ALL));

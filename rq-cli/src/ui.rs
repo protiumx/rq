@@ -1,9 +1,4 @@
-use ratatui::{
-    prelude::Rect,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{ListState, Widget},
-};
+use ratatui::widgets::ListState;
 
 pub struct StatefulList<T> {
     state: ListState,
@@ -52,37 +47,5 @@ impl<T> From<Vec<T>> for StatefulList<T> {
             state: ListState::default().with_selected(Some(0)),
             items: value,
         }
-    }
-}
-
-pub struct Legend {
-    keymaps: Vec<(String, String)>,
-}
-
-impl From<Vec<(String, String)>> for Legend {
-    fn from(value: Vec<(String, String)>) -> Self {
-        Legend { keymaps: value }
-    }
-}
-
-impl Widget for Legend {
-    fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-        let spans = self
-            .keymaps
-            .iter()
-            .flat_map(|(k, v)| {
-                [
-                    Span::styled(
-                        format!(" {k} "),
-                        Style::default().add_modifier(Modifier::REVERSED),
-                    ),
-                    format!(" {v} ").into(),
-                ]
-            })
-            .collect::<Vec<_>>();
-
-        let line = Line::from(spans);
-
-        buf.set_line(area.x, area.y, &line, area.width);
     }
 }

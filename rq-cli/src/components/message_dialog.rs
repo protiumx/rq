@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Style},
-    widgets::{Clear, Paragraph, Wrap},
+    widgets::{Paragraph, Wrap},
 };
 
 use crate::ui::Legend;
@@ -26,34 +26,29 @@ pub enum Message {
     Error(String),
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct MessageDialog {
-    content: Option<Message>,
+    content: Message,
 }
 
 impl MessageDialog {
     pub fn push_message(content: Message) {
         MESSAGES.as_ref().lock().unwrap().push_back(content);
     }
+
+    pub fn pop_message() -> Option<Self> {
+        MESSAGES
+            .as_ref()
+            .lock()
+            .unwrap()
+            .pop_front()
+            .map(|content| Self { content })
+    }
 }
 
 impl BlockComponent for MessageDialog {
     fn on_event(&mut self, _key_event: crossterm::event::KeyEvent) -> HandleResult {
-        match self.content {
-            Some(_) => {
-                self.content = None;
-                Ok(HandleSuccess::Consumed)
-            }
-            None => Ok(HandleSuccess::Ignored),
-        }
-    }
-
-    fn update(&mut self) {
-        if self.content.is_some() {
-            return;
-        }
-
-        self.content = MESSAGES.as_ref().lock().unwrap().pop_front();
+        Ok(HandleSuccess::Consumed)
     }
 
     fn render(
@@ -72,13 +67,8 @@ impl BlockComponent for MessageDialog {
         };
 
         let (content, title, color) = match &self.content {
-            None => {
-                return;
-            }
-            Some(content) => match content {
-                Message::Info(content) => (content.as_str(), " info ", Color::Green),
-                Message::Error(content) => (content.as_str(), " error ", Color::Red),
-            },
+            Message::Info(content) => (content.as_str(), " info ", Color::Green),
+            Message::Error(content) => (content.as_str(), " error ", Color::Red),
         };
 
         let p = Paragraph::new(content)
@@ -92,7 +82,6 @@ impl BlockComponent for MessageDialog {
                 .collect::<Vec<_>>(),
         );
 
-        frame.render_widget(Clear, main_area);
         frame.render_widget(p, main_area);
         frame.render_widget(legend, legend_area);
     }

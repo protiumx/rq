@@ -54,7 +54,7 @@ pub struct App {
     should_exit: bool,
     file_path: String,
     focus: FocusState,
-    message_popup: Popup<MessageDialog>,
+    message_popup: Option<Popup<MessageDialog>>,
 }
 
 fn handle_requests(mut req_rx: Receiver<(HttpRequest, usize)>, res_tx: Sender<(Response, usize)>) {
@@ -91,15 +91,20 @@ impl App {
             responses,
             should_exit: false,
             focus: FocusState::default(),
-            message_popup: Popup::new(MessageDialog::default()),
+            message_popup: None,
         }
     }
 
     async fn on_key_event(&mut self, event: KeyEvent) -> anyhow::Result<()> {
-        match self.message_popup.on_event(event)? {
-            HandleSuccess::Consumed => return Ok(()),
-            HandleSuccess::Ignored => (),
-        };
+        if let Some(popup) = self.message_popup.as_mut() {
+            match popup.on_event(event)? {
+                HandleSuccess::Consumed => {
+                    self.message_popup = None;
+                    return Ok(());
+                }
+                HandleSuccess::Ignored => (),
+            };
+        }
 
         // Propagate event to siblings
         let event_result = match self.focus {
@@ -197,8 +202,9 @@ impl App {
         );
         f.render_widget(legend, legend_chunk);
 
-        self.message_popup
-            .render(f, f.size(), Block::default().borders(Borders::ALL));
+        if let Some(popup) = self.message_popup.as_ref() {
+            popup.render(f, f.size(), Block::default().borders(Borders::ALL));
+        }
     }
 
     pub fn update(&mut self) {
@@ -207,7 +213,9 @@ impl App {
             self.responses[i] = ResponsePanel::from(res);
         }
 
-        self.message_popup.update();
+        if self.message_popup.is_none() {
+            self.message_popup = MessageDialog::pop_message().map(Popup::new);
+        }
     }
 
     pub fn should_exit(&self) -> bool {

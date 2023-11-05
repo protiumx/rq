@@ -1,4 +1,7 @@
-use ratatui::prelude::{Constraint, Direction, Layout, Rect};
+use ratatui::{
+    prelude::{Constraint, Direction, Layout, Rect},
+    widgets::Clear,
+};
 use std::ops::{Deref, DerefMut};
 
 use super::BlockComponent;
@@ -66,6 +69,7 @@ impl<T: BlockComponent> BlockComponent for Popup<T> {
             ])
             .split(popup_area)[1];
 
+        frame.render_widget(Clear, popup_area);
         self.component.render(frame, popup_area, block);
     }
 }

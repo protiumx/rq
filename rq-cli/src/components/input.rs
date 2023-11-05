@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
-    widgets::{Clear, Paragraph},
+    widgets::Paragraph,
 };
 use tui_input::{backend::crossterm::EventHandler, Input};
 
@@ -41,7 +41,6 @@ impl BlockComponent for Input {
                 .collect::<Vec<_>>(),
         );
 
-        frame.render_widget(Clear, area);
         frame.render_widget(p.block(block), main_area);
         frame.render_widget(legend, legend_area);
 

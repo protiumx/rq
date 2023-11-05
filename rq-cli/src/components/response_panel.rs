@@ -6,14 +6,43 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
 use rq_core::request::{Response, StatusCode};
-use std::fmt::Write;
+use std::fmt::{Display, Write};
 use tui_input::Input;
 
 use super::{
+    menu::{Menu, MenuItem},
     message_dialog::{Message, MessageDialog},
     popup::Popup,
     BlockComponent, HandleResult, HandleSuccess,
 };
+
+#[derive(Copy, Clone, Default)]
+enum SaveOption {
+    #[default]
+    All,
+    Body,
+}
+
+impl SaveOption {
+    fn iterator() -> impl Iterator<Item = SaveOption> {
+        [SaveOption::All, SaveOption::Body].iter().copied()
+    }
+}
+
+impl Display for SaveOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SaveOption::All => write!(f, "Save entire response"),
+            SaveOption::Body => write!(f, "Save response body"),
+        }
+    }
+}
+
+impl MenuItem for SaveOption {
+    fn to_menu_item(&self) -> Vec<Line<'_>> {
+        vec![Line::from(self.to_string())]
+    }
+}
 
 #[derive(Clone, Default)]
 enum Content {
@@ -23,29 +52,21 @@ enum Content {
 }
 
 #[derive(Clone, Default)]
-enum SaveMode {
-    #[default]
-    All,
-    Body,
-}
-
-#[derive(Clone, Default)]
 pub struct ResponsePanel {
     content: Content,
     scroll: u16,
-    last_input: Option<String>,
     input_popup: Option<Popup<Input>>,
-    save_mode: SaveMode,
+    save_option: SaveOption,
+    save_menu: Option<Popup<Menu<SaveOption>>>,
 }
 
 impl From<Response> for ResponsePanel {
     fn from(value: Response) -> Self {
+        let defualt = Self::default();
+
         Self {
             content: Content::Response(value),
-            scroll: 0,
-            last_input: None,
-            input_popup: None,
-            save_mode: SaveMode::All,
+            ..defualt
         }
     }
 }
@@ -57,32 +78,6 @@ impl ResponsePanel {
 
     fn scroll_up(&mut self) {
         self.scroll = self.scroll.saturating_sub(1);
-    }
-
-    fn get_last_input(&self) -> Option<&str> {
-        self.last_input
-            .as_ref()
-            .and_then(|s| if s.is_empty() { None } else { Some(s.as_str()) })
-    }
-
-    fn save_to_file(&mut self) -> anyhow::Result<()> {
-        let path = self.get_last_input().ok_or(anyhow!("Empty filename"))?;
-
-        std::fs::write(path, self.to_string()?)?;
-
-        MessageDialog::push_message(Message::Info(format!("Response saved to {}", path)));
-
-        Ok(())
-    }
-
-    fn save_body_to_file(&mut self) -> anyhow::Result<()> {
-        let path = self.get_last_input().ok_or(anyhow!("Empty filename"))?;
-
-        std::fs::write(path, self.body()?)?;
-
-        MessageDialog::push_message(Message::Info(format!("Response body saved to {}", path)));
-
-        Ok(())
     }
 
     fn body(&self) -> anyhow::Result<String> {
@@ -125,19 +120,45 @@ impl BlockComponent for ResponsePanel {
 
             match key_event.code {
                 KeyCode::Enter => {
-                    self.last_input = Some(input_popup.value().into());
+                    let file_path = input_popup.value().to_string();
+
+                    let to_save = match self.save_option {
+                        SaveOption::All => self.to_string()?,
+                        SaveOption::Body => self.body()?,
+                    };
+
+                    std::fs::write(&file_path, to_save)?;
                     self.input_popup = None;
 
-                    match self.save_mode {
-                        SaveMode::All => self.save_to_file()?,
-                        SaveMode::Body => self.save_body_to_file()?,
-                    }
+                    MessageDialog::push_message(Message::Info(format!("Saved to {}", file_path)));
 
                     return Ok(HandleSuccess::Consumed);
                 }
                 KeyCode::Esc => {
-                    self.last_input = None;
                     self.input_popup = None;
+
+                    return Ok(HandleSuccess::Consumed);
+                }
+                _ => (),
+            }
+        }
+
+        if let Some(menu) = self.save_menu.as_mut() {
+            match menu.on_event(key_event)? {
+                HandleSuccess::Consumed => return Ok(HandleSuccess::Consumed),
+                HandleSuccess::Ignored => (),
+            }
+
+            match key_event.code {
+                KeyCode::Enter => {
+                    self.save_option = *menu.selected();
+                    self.save_menu = None;
+                    self.input_popup = Some(Popup::new(Input::from("")));
+
+                    return Ok(HandleSuccess::Consumed);
+                }
+                KeyCode::Esc => {
+                    self.save_menu = None;
 
                     return Ok(HandleSuccess::Consumed);
                 }
@@ -149,12 +170,7 @@ impl BlockComponent for ResponsePanel {
             KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
             KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
             KeyCode::Char('s') => {
-                self.save_mode = SaveMode::Body;
-                self.input_popup = Some(Popup::new(Input::new("".into())));
-            }
-            KeyCode::Char('S') => {
-                self.save_mode = SaveMode::All;
-                self.input_popup = Some(Popup::new(Input::new("".into())));
+                self.save_menu = Some(Popup::new(Menu::new(SaveOption::iterator().collect())))
             }
             _ => return Ok(HandleSuccess::Ignored),
         };
@@ -229,6 +245,14 @@ impl BlockComponent for ResponsePanel {
                     .borders(Borders::ALL)
                     .title(" output path "),
             );
+        }
+
+        if let Some(menu) = self.save_menu.as_ref() {
+            menu.render(
+                frame,
+                frame.size(),
+                Block::default().borders(Borders::ALL).title(" save menu "),
+            )
         }
     }
 }

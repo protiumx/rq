@@ -3,7 +3,6 @@ use rq_core::parser::parse;
 mod app;
 mod components;
 mod terminal;
-mod ui;
 
 use app::App;
 

@@ -1,6 +1,7 @@
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
     style::{Color, Style},
+    text::{Line, Span},
     widgets::{Block, Borders},
 };
 use rq_core::{
@@ -12,9 +13,9 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::components::{
+    menu::{Menu, MenuItem},
     message_dialog::{Message, MessageDialog},
     popup::Popup,
-    request_list::RequestList,
     response_panel::ResponsePanel,
     BlockComponent, HandleSuccess,
 };
@@ -26,11 +27,38 @@ enum FocusState {
     ResponseBuffer,
 }
 
+impl MenuItem for HttpRequest {
+    fn to_menu_item(&self) -> Vec<ratatui::text::Line<'_>> {
+        let mut lines = vec![Line::from(vec![
+            Span::styled(self.method.to_string(), Style::default().fg(Color::Green)),
+            Span::raw(format!(" {} HTTP/{}", self.url, self.version)),
+        ])];
+
+        let headers: Vec<Line> = self
+            .headers()
+            .iter()
+            .map(|(k, v)| Line::from(format!("{}: {}", k, v.to_str().unwrap())))
+            .collect();
+
+        lines.extend(headers);
+        // new line
+        lines.push(Line::from(""));
+        if !self.body.is_empty() {
+            lines.push(Line::styled(
+                self.body.as_str(),
+                Style::default().fg(Color::Rgb(246, 69, 42)),
+            ));
+            lines.push(Line::from(""));
+        }
+        lines
+    }
+}
+
 pub struct App {
     res_rx: Receiver<(Response, usize)>,
     req_tx: Sender<(HttpRequest, usize)>,
 
-    request_list: RequestList,
+    request_menu: Menu<HttpRequest>,
     responses: Vec<ResponsePanel>,
     should_exit: bool,
     file_path: String,
@@ -68,7 +96,7 @@ impl App {
             file_path,
             res_rx,
             req_tx,
-            request_list: RequestList::from(http_file.requests),
+            request_menu: Menu::new(http_file.requests),
             responses,
             should_exit: false,
             focus: FocusState::default(),
@@ -89,10 +117,8 @@ impl App {
 
         // Propagate event to siblings
         let event_result = match self.focus {
-            FocusState::RequestsList => self.request_list.on_event(event),
-            FocusState::ResponseBuffer => {
-                self.responses[self.request_list.selected_index()].on_event(event)
-            }
+            FocusState::RequestsList => self.request_menu.on_event(event),
+            FocusState::ResponseBuffer => self.responses[self.request_menu.idx()].on_event(event),
         };
 
         match event_result {
@@ -123,8 +149,8 @@ impl App {
                 FocusState::ResponseBuffer => {
                     self.req_tx
                         .send((
-                            self.request_list.selected().clone(),
-                            self.request_list.selected_index(),
+                            self.request_menu.selected().clone(),
+                            self.request_menu.idx(),
                         ))
                         .await?
                 }
@@ -155,12 +181,13 @@ impl App {
             .borders(Borders::ALL)
             .title(format!(">> {} <<", self.file_path.as_str()))
             .border_style(list_border_style);
-        self.request_list.render(f, list_chunk, list_block);
 
         let response_block = Block::default()
             .borders(Borders::ALL)
             .border_style(response_border_style);
-        let response_panel = &self.responses[self.request_list.selected_index()];
+
+        self.request_menu.render(f, list_chunk, list_block);
+        let response_panel = &self.responses[self.request_menu.idx()];
         response_panel.render(f, response_chunk, response_block);
 
         if let Some(popup) = self.message_popup.as_ref() {

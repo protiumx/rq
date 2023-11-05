@@ -4,9 +4,9 @@ use ratatui::{prelude::Rect, widgets::Block};
 use crate::terminal::Frame;
 
 pub mod input;
+pub mod menu;
 pub mod message_dialog;
 pub mod popup;
-pub mod request_list;
 pub mod response_panel;
 
 pub enum HandleSuccess {

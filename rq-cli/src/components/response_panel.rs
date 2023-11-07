@@ -229,13 +229,17 @@ impl BlockComponent for ResponsePanel {
             .block(block);
 
         frame.render_widget(component, area);
-        frame.render_stateful_widget(
-            Scrollbar::default().orientation(ratatui::widgets::ScrollbarOrientation::VerticalRight),
-            area,
-            &mut ScrollbarState::default()
-                .position(self.scroll)
-                .content_length(content_length as u16),
-        );
+
+        if content_length as u16 > area.height {
+            frame.render_stateful_widget(
+                Scrollbar::default()
+                    .orientation(ratatui::widgets::ScrollbarOrientation::VerticalRight),
+                area,
+                &mut ScrollbarState::default()
+                    .position(self.scroll)
+                    .content_length(content_length as u16),
+            );
+        }
 
         if let Some(input_popup) = self.input_popup.as_ref() {
             input_popup.render(

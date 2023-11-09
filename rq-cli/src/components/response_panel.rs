@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap},
 };
-use rq_core::request::{Response, StatusCode};
+use rq_core::request::{Content, Response, StatusCode};
 use std::fmt::{Display, Write};
 use tui_input::Input;
 
@@ -45,15 +45,8 @@ impl MenuItem for SaveOption {
 }
 
 #[derive(Clone, Default)]
-enum Content {
-    Response(Response),
-    #[default]
-    Empty,
-}
-
-#[derive(Clone, Default)]
 pub struct ResponsePanel {
-    content: Content,
+    content: Option<Response>,
     scroll: u16,
     input_popup: Option<Popup<Input>>,
     save_option: SaveOption,
@@ -62,11 +55,11 @@ pub struct ResponsePanel {
 
 impl From<Response> for ResponsePanel {
     fn from(value: Response) -> Self {
-        let defualt = Self::default();
+        let default = Self::default();
 
         Self {
-            content: Content::Response(value),
-            ..defualt
+            content: Some(value),
+            ..default
         }
     }
 }
@@ -80,16 +73,16 @@ impl ResponsePanel {
         self.scroll = self.scroll.saturating_sub(1);
     }
 
-    fn body(&self) -> anyhow::Result<String> {
+    fn body(&self) -> anyhow::Result<Content> {
         match &self.content {
-            Content::Response(response) => Ok(response.body.clone()),
-            Content::Empty => Err(anyhow!("Request not sent")),
+            Some(response) => Ok(response.body.clone()),
+            None => Err(anyhow!("Request not sent")),
         }
     }
 
     fn to_string(&self) -> anyhow::Result<String> {
         match &self.content {
-            Content::Response(response) => {
+            Some(response) => {
                 let headers = response
                     .headers
                     .iter()
@@ -100,12 +93,14 @@ impl ResponsePanel {
 
                 let s = format!(
                     "{} {}\n{headers}\n\n{}",
-                    response.version, response.status, response.body
+                    response.version,
+                    response.status,
+                    self.body()?
                 );
 
                 Ok(s)
             }
-            Content::Empty => Err(anyhow!("Request not sent")),
+            None => Err(anyhow!("Request not sent")),
         }
     }
 }
@@ -123,8 +118,11 @@ impl BlockComponent for ResponsePanel {
                     let file_path = input_popup.value().to_string();
 
                     let to_save = match self.save_option {
-                        SaveOption::All => self.to_string()?,
-                        SaveOption::Body => self.body()?,
+                        SaveOption::All => self.to_string()?.into(),
+                        SaveOption::Body => match self.body()? {
+                            Content::Bytes(b) => b,
+                            Content::Text(t) => t.into(),
+                        },
                     };
 
                     std::fs::write(&file_path, to_save)?;
@@ -184,8 +182,13 @@ impl BlockComponent for ResponsePanel {
         area: ratatui::prelude::Rect,
         block: ratatui::widgets::Block,
     ) {
+        let body = match self.body() {
+            Ok(x) => x.to_string(),
+            Err(e) => e.to_string(),
+        };
+
         let content = match &self.content {
-            Content::Response(response) => {
+            Some(response) => {
                 let mut lines = vec![];
 
                 // First line
@@ -212,13 +215,13 @@ impl BlockComponent for ResponsePanel {
                 // Body
                 // with initial empty line
                 lines.push(Line::from(""));
-                for line in response.body.lines() {
+                for line in body.lines() {
                     lines.push(line.into());
                 }
 
                 lines
             }
-            Content::Empty => vec![Line::styled("<Empty>", Style::default().fg(Color::Yellow))],
+            None => vec![Line::styled("<Empty>", Style::default().fg(Color::Yellow))],
         };
 
         let content_length = content.len();

@@ -31,7 +31,7 @@ impl MenuItem for HttpRequest {
     fn to_menu_item(&self) -> Vec<ratatui::text::Line<'_>> {
         let mut lines = vec![Line::from(vec![
             Span::styled(self.method.to_string(), Style::default().fg(Color::Green)),
-            Span::raw(format!(" {} HTTP/{}", self.url, self.version)),
+            Span::raw(format!(" {} {:?}", self.url, self.version)),
         ])];
 
         let headers: Vec<Line> = self

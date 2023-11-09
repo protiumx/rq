@@ -3,7 +3,7 @@ use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
 use reqwest::header::HeaderMap;
-use reqwest::Method;
+use reqwest::{Method, Version};
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::result::Result;
@@ -44,11 +44,22 @@ impl<'i> From<Pairs<'i, Rule>> for HttpHeaders {
     }
 }
 
+fn http_version_from_str(input: &str) -> Version {
+    match input {
+        "HTTP/0.9" => Version::HTTP_09,
+        "HTTP/1.0" => Version::HTTP_10,
+        "HTTP/1.1" => Version::HTTP_11,
+        "HTTP/2.0" => Version::HTTP_2,
+        "HTTP/3.0" => Version::HTTP_3,
+        _ => unreachable!(),
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct HttpRequest {
     pub method: Method,
     pub url: String,
-    pub version: String,
+    pub version: Version,
     headers: HttpHeaders,
     pub body: String,
 }
@@ -71,7 +82,7 @@ impl<'i> From<Pair<'i, Rule>> for HttpRequest {
         let url = pairs.next().unwrap().as_str().to_string();
         let version = pairs
             .next_if(|pair| pair.as_rule() == Rule::version)
-            .map(|pair| pair.as_str().to_string())
+            .map(|pair| http_version_from_str(pair.as_str()))
             .unwrap_or_default();
 
         let headers: HttpHeaders = pairs
@@ -98,7 +109,7 @@ impl Display for HttpRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} {} HTTP/{} {}",
+            "{} {} {:?} {}",
             self.method, self.url, self.version, self.headers
         )
     }

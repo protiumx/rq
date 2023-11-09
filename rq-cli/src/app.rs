@@ -44,10 +44,12 @@ impl MenuItem for HttpRequest {
         // new line
         lines.push(Line::from(""));
         if !self.body.is_empty() {
-            lines.push(Line::styled(
-                self.body.as_str(),
-                Style::default().fg(Color::Rgb(246, 69, 42)),
-            ));
+            for line in self.body.lines() {
+                lines.push(Line::styled(
+                    line,
+                    Style::default().fg(Color::Rgb(246, 69, 42)),
+                ));
+            }
             lines.push(Line::from(""));
         }
         lines

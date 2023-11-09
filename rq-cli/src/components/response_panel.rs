@@ -39,7 +39,7 @@ impl Display for SaveOption {
 }
 
 impl MenuItem for SaveOption {
-    fn to_menu_item(&self) -> Vec<Line<'_>> {
+    fn render(&self) -> Vec<Line<'_>> {
         vec![Line::from(self.to_string())]
     }
 }

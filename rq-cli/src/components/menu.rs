@@ -1,6 +1,5 @@
 use crossterm::event::KeyCode;
 use ratatui::{
-    style::{Color, Modifier, Style},
     text::Line,
     widgets::{List, ListItem, ListState},
 };
@@ -8,7 +7,10 @@ use ratatui::{
 use super::BlockComponent;
 
 pub trait MenuItem {
-    fn to_menu_item(&self) -> Vec<Line<'_>>;
+    fn render(&self) -> Vec<Line<'_>>;
+    fn render_highlighted(&self) -> Vec<Line<'_>> {
+        self.render()
+    }
 }
 
 #[derive(Clone)]
@@ -62,16 +64,17 @@ impl<T: MenuItem> BlockComponent for Menu<T> {
         let items = self
             .items
             .iter()
-            .map(|i| ListItem::new(i.to_menu_item()))
+            .enumerate()
+            .map(|(i, item)| {
+                if self.idx == i {
+                    ListItem::new(item.render_highlighted())
+                } else {
+                    ListItem::new(item.render())
+                }
+            })
             .collect::<Vec<_>>();
 
-        let list = List::new(items)
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol("> ");
+        let list = List::new(items).highlight_symbol("> ");
 
         frame.render_stateful_widget(
             list.block(block),

@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_http_headers() {
         let input = r#"
-POST test.dev HTTP/1
+POST test.dev HTTP/1.0
 authorization: Bearer xxxx
 
 "#;
@@ -188,7 +188,7 @@ authorization: Bearer xxxx
     #[test]
     fn test_http_body() {
         let input = r#"
-POST test.dev HTTP/1
+POST test.dev HTTP/1.0
 
 { "test": "body" }"#;
         let file = assert_parses(input);
@@ -198,19 +198,19 @@ POST test.dev HTTP/1
     #[test]
     fn test_http_file() {
         let input = r#"
-POST test.dev HTTP/1
+POST test.dev HTTP/1.0
 authorization: token
 
 ###
 
-GET test.dev HTTP/1
+GET test.dev HTTP/1.0
 
 "#;
         let file = assert_parses(input);
         assert_eq!(file.requests.len(), 2);
         assert_eq!(
             file.to_string(),
-            "#0\nPOST test.dev HTTP/1 [authorization: token]\n#1\nGET test.dev HTTP/1 []\n"
+            "#0\nPOST test.dev HTTP/1.0 [authorization: token]\n#1\nGET test.dev HTTP/1.0 []\n"
         );
     }
 }

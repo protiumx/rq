@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::{Constraint, Direction, Layout},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders},
 };
@@ -37,21 +37,53 @@ impl MenuItem for HttpRequest {
         let headers: Vec<Line> = self
             .headers()
             .iter()
-            .map(|(k, v)| Line::from(format!("{}: {}", k, v.to_str().unwrap())))
+            .map(|(k, v)| {
+                Line::from(vec![
+                    Span::styled(k.to_string(), Style::default().fg(Color::Blue)),
+                    Span::raw(": "),
+                    Span::raw(v.to_str().unwrap().to_string()),
+                ])
+            })
             .collect();
-
         lines.extend(headers);
-        // new line
-        lines.push(Line::from(""));
+
         if !self.body.is_empty() {
+            lines.push(Line::styled(
+                "Focus to show body",
+                Style::default()
+                    .fg(Color::Rgb(246, 133, 116))
+                    .add_modifier(Modifier::ITALIC),
+            ));
+        }
+
+        lines.push(Line::from(""));
+        lines
+    }
+
+    fn render_highlighted(&self) -> Vec<Line<'_>> {
+        let mut lines = self.render();
+
+        // Underline first line
+        lines[0].patch_style(
+            Style::default()
+                .add_modifier(Modifier::UNDERLINED)
+                .add_modifier(Modifier::BOLD),
+        );
+
+        // Replace body with expanded version
+        if !self.body.is_empty() {
+            lines.pop();
+            lines.pop();
+
             for line in self.body.lines() {
                 lines.push(Line::styled(
                     line,
-                    Style::default().fg(Color::Rgb(246, 69, 42)),
+                    Style::default().fg(Color::Rgb(246, 133, 116)),
                 ));
             }
             lines.push(Line::from(""));
         }
+
         lines
     }
 }

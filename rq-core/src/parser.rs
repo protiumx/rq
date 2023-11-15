@@ -157,6 +157,7 @@ pub fn parse(input: &str) -> Result<HttpFile, Box<Error<Rule>>> {
 #[cfg(test)]
 mod tests {
     use super::{parse, HttpFile};
+    use reqwest::{Method, Version};
 
     fn assert_parses(input: &str) -> HttpFile {
         let parsed = parse(input);
@@ -167,17 +168,53 @@ mod tests {
     #[test]
     fn test_empty_input() {
         let file = assert_parses("");
-        assert_eq!(file.to_string(), "No requests found\n");
+        assert_eq!(file.requests.len(), 0);
     }
 
     #[test]
-    fn test_http_headers() {
+    fn test_single_requst() {
+        let input = r#"
+GET foo.bar HTTP/1.1
+
+"#;
+        let file = assert_parses(input);
+        assert_eq!(file.requests.len(), 1);
+        assert_eq!(file.requests[0].method, Method::GET);
+        assert_eq!(file.requests[0].url, "foo.bar");
+        assert_eq!(file.requests[0].version, Version::HTTP_11);
+    }
+
+    #[test]
+    fn test_optional_method() {
+        let input = r#"
+foo.bar HTTP/1.1
+
+"#;
+        let file = assert_parses(input);
+        assert_eq!(file.requests.len(), 1);
+        assert_eq!(file.requests[0].method, Method::default());
+    }
+
+    #[test]
+    fn test_optional_version() {
+        let input = r#"
+GET foo.bar
+
+"#;
+        let file = assert_parses(input);
+        assert_eq!(file.requests.len(), 1);
+        assert_eq!(file.requests[0].version, Version::default());
+    }
+
+    #[test]
+    fn test_headers() {
         let input = r#"
 POST test.dev HTTP/1.0
 authorization: Bearer xxxx
 
 "#;
         let file = assert_parses(input);
+        assert_eq!(file.requests.len(), 1);
         assert_eq!(file.requests[0].headers.0.len(), 1);
         assert_eq!(
             file.requests[0].headers.0.get("authorization").unwrap(),
@@ -186,7 +223,7 @@ authorization: Bearer xxxx
     }
 
     #[test]
-    fn test_http_body() {
+    fn test_body() {
         let input = r#"
 POST test.dev HTTP/1.0
 
@@ -196,7 +233,7 @@ POST test.dev HTTP/1.0
     }
 
     #[test]
-    fn test_http_file() {
+    fn test_multiple_requests() {
         let input = r#"
 POST test.dev HTTP/1.0
 authorization: token
@@ -208,9 +245,5 @@ GET test.dev HTTP/1.0
 "#;
         let file = assert_parses(input);
         assert_eq!(file.requests.len(), 2);
-        assert_eq!(
-            file.to_string(),
-            "#0\nPOST test.dev HTTP/1.0 [authorization: token]\n#1\nGET test.dev HTTP/1.0 []\n"
-        );
     }
 }

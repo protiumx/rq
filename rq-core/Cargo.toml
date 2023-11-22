@@ -12,3 +12,5 @@ pest = "2.7.4"
 pest_derive = "2.7.4"
 once_cell = "1.18.0"
 reqwest = { version = "0.11", features = ["json"] }
+encoding_rs = "0.8.33"
+mime = "0.3.17"

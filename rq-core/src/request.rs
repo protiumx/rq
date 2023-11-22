@@ -1,12 +1,16 @@
 extern crate reqwest;
 
-use bytes::Bytes;
 use once_cell::sync::Lazy;
 pub use reqwest::StatusCode;
 use reqwest::{header::HeaderMap, Client};
 
 use crate::parser::HttpRequest;
-use std::{fmt::Display, time::Duration};
+use std::time::Duration;
+
+use self::mime::Payload;
+
+mod decode;
+pub mod mime;
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
     Client::builder()
@@ -17,35 +21,11 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
 });
 
 #[derive(Clone)]
-pub enum Content {
-    Bytes(Bytes),
-    Text(String),
-}
-
-impl Display for Content {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Content::Bytes(_) => write!(f, "<raw bytes>"),
-            Content::Text(s) => write!(f, "{s}"),
-        }
-    }
-}
-
-impl From<Bytes> for Content {
-    fn from(value: Bytes) -> Self {
-        match String::from_utf8(value.clone().into()) {
-            Ok(s) => Content::Text(s),
-            Err(_) => Content::Bytes(value),
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct Response {
     pub status: StatusCode,
     pub headers: HeaderMap,
     pub version: String,
-    pub body: Content,
+    pub payload: Payload,
 }
 
 impl Response {
@@ -53,13 +33,13 @@ impl Response {
         let status = value.status();
         let version = format!("{:?}", value.version());
         let headers = value.headers().clone();
-        let body = value.bytes().await.unwrap().into();
+        let payload = Payload::of_response(value).await;
 
         Self {
             status,
             version,
             headers,
-            body,
+            payload,
         }
     }
 }

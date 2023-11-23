@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use mime::Mime;
+use mime::{Mime, Name};
 use reqwest::{header::CONTENT_TYPE, Response};
 
 use super::decode::decode_with_encoding;
@@ -12,6 +12,7 @@ pub struct BytePayload {
 
 #[derive(Debug, Clone)]
 pub struct TextPayload {
+    pub extension: Option<String>,
     pub charset: String,
     pub text: String,
 }
@@ -32,7 +33,7 @@ impl Payload {
 
         match mime {
             Some(mime) => match (mime.type_(), mime.subtype()) {
-                (mime::TEXT, _) => {
+                (mime::TEXT, extension) => {
                     let charset = mime
                         .get_param("charset")
                         .map(|charset| charset.to_string())
@@ -42,10 +43,11 @@ impl Payload {
                     Payload::Text(TextPayload {
                         charset: encoding.name().to_owned(),
                         text,
+                        extension: parse_extension(extension),
                     })
                 }
-                _ => Payload::Bytes(BytePayload {
-                    extension: None,
+                (_, extension) => Payload::Bytes(BytePayload {
+                    extension: parse_extension(extension),
                     bytes: response.bytes().await.unwrap(),
                 }),
             },
@@ -57,11 +59,23 @@ impl Payload {
     }
 }
 
-// impl Display for Payload {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             Payload::Bytes(_) => write!(f, "raw bytes"),
-//             Payload::Text(t) => write!(f, "decoded with encoding: '{}'\n{}", t.charset, t.text),
-//         }
-//     }
-// }
+fn parse_extension(name: Name) -> Option<String> {
+    match name {
+        mime::PDF => Some("pdf"),
+        mime::HTML => Some("html"),
+        mime::BMP => Some("bmp"),
+        mime::CSS => Some("css"),
+        mime::CSV => Some("csv"),
+        mime::GIF => Some("gif"),
+        mime::JAVASCRIPT => Some("js"),
+        mime::JPEG => Some("jpg"),
+        mime::JSON => Some("json"),
+        mime::MP4 => Some("mp4"),
+        mime::MPEG => Some("mpeg"),
+        mime::PNG => Some("png"),
+        mime::SVG => Some("svg"),
+        mime::XML => Some("xml"),
+        _ => None,
+    }
+    .map(|extension| extension.to_string())
+}

@@ -171,26 +171,37 @@ impl BlockComponent for ResponsePanel {
             }
         }
 
-        if let Some(menu) = self.save_menu.as_mut() {
-            match menu.on_event(key_event)? {
-                HandleSuccess::Consumed => return Ok(HandleSuccess::Consumed),
-                HandleSuccess::Ignored => (),
-            }
+        if self.save_menu.is_some() {
+            let extension = self
+                .body()
+                .ok()
+                .map(|payload| match payload {
+                    Payload::Bytes(b) => b.extension.unwrap_or_default(),
+                    Payload::Text(t) => t.extension.unwrap_or_default(),
+                })
+                .unwrap_or_default();
 
-            match key_event.code {
-                KeyCode::Enter => {
-                    self.save_option = *menu.selected();
-                    self.save_menu = None;
-                    self.input_popup = Some(Popup::new(Input::from("")));
-
-                    return Ok(HandleSuccess::Consumed);
+            if let Some(menu) = self.save_menu.as_mut() {
+                match menu.on_event(key_event)? {
+                    HandleSuccess::Consumed => return Ok(HandleSuccess::Consumed),
+                    HandleSuccess::Ignored => (),
                 }
-                KeyCode::Esc => {
-                    self.save_menu = None;
 
-                    return Ok(HandleSuccess::Consumed);
+                match key_event.code {
+                    KeyCode::Enter => {
+                        self.save_option = *menu.selected();
+                        self.save_menu = None;
+                        self.input_popup = Some(Popup::new(Input::from(extension)));
+
+                        return Ok(HandleSuccess::Consumed);
+                    }
+                    KeyCode::Esc => {
+                        self.save_menu = None;
+
+                        return Ok(HandleSuccess::Consumed);
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
 

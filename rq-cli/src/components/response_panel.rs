@@ -261,7 +261,7 @@ impl BlockComponent for ResponsePanel {
         let content_length = content.len();
 
         let component = Paragraph::new(content)
-            .wrap(Wrap { trim: true })
+            .wrap(Wrap { trim: false })
             .scroll((self.scroll, 0))
             .block(block);
 

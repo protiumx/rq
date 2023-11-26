@@ -32,25 +32,29 @@ impl Payload {
             .and_then(|value| value.parse::<Mime>().ok());
 
         match mime {
-            Some(mime) => match (mime.type_(), mime.subtype()) {
-                (mime::TEXT, extension) => {
-                    let charset = mime
-                        .get_param("charset")
-                        .map(|charset| charset.to_string())
-                        .unwrap_or("utf-8".into());
-                    let (text, encoding) =
-                        decode_with_encoding(response.bytes().await.unwrap(), &charset).await;
-                    Payload::Text(TextPayload {
-                        charset: encoding.name().to_owned(),
-                        text,
+            Some(mime) => {
+                let extension = mime.subtype();
+
+                match (mime.type_(), extension) {
+                    (mime::TEXT, _) | (_, mime::JSON) => {
+                        let charset = mime
+                            .get_param("charset")
+                            .map(|charset| charset.to_string())
+                            .unwrap_or("utf-8".into());
+                        let (text, encoding) =
+                            decode_with_encoding(response.bytes().await.unwrap(), &charset).await;
+                        Payload::Text(TextPayload {
+                            charset: encoding.name().to_owned(),
+                            text,
+                            extension: parse_extension(extension),
+                        })
+                    }
+                    (_, extension) => Payload::Bytes(BytePayload {
                         extension: parse_extension(extension),
-                    })
+                        bytes: response.bytes().await.unwrap(),
+                    }),
                 }
-                (_, extension) => Payload::Bytes(BytePayload {
-                    extension: parse_extension(extension),
-                    bytes: response.bytes().await.unwrap(),
-                }),
-            },
+            }
             None => Payload::Bytes(BytePayload {
                 extension: None,
                 bytes: response.bytes().await.unwrap(),

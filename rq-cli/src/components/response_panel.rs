@@ -191,7 +191,9 @@ impl BlockComponent for ResponsePanel {
                     KeyCode::Enter => {
                         self.save_option = *menu.selected();
                         self.save_menu = None;
-                        self.input_popup = Some(Popup::new(Input::from(extension)));
+                        self.input_popup = Some(Popup::new(
+                            Input::from(".".to_string() + extension.as_str()).with_cursor(0),
+                        ));
 
                         return Ok(HandleSuccess::Consumed);
                     }
